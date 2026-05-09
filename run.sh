@@ -1,5 +1,5 @@
 #!/bin/bash
-# run.sh — Portable shell script to launch the Package Manager
+# run.sh — Portable shell script to launch the Vivid Package Manager
 
 # Get the absolute path to the directory where this script is located
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-launcher.py — Portable entry point for the Package Manager.
+launcher.py — Portable entry point for the Vivid Package Manager.
 Ensures the application can be moved anywhere and still find its components.
 """
 import os
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         app = App()
         app.mainloop()
     except ImportError as e:
-        print(f"Error: Missing dependencies! ({e})")
+        print(f"Error: Could not find Vivid Package Manager components. ({e})")
         print(f"Please install them using:")
         print(f"  pip install customtkinter Pillow")
         print(f"\nOr use the local virtual environment if available.")

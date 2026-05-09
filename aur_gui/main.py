@@ -18,7 +18,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Package Manager")
+        self.title("Vivid Package Manager")
         self.geometry("980x650")
 
         # Set icon
