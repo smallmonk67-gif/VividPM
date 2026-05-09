@@ -4,17 +4,20 @@ pkg_manager.py — Dispatcher that auto-detects and routes to available backends
 import os
 import threading
 import shutil
+import platform
 
 from aur_gui.backends import (
     pacman_backend, flatpak_backend, snap_backend, pip_backend,
     apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
+    winget_backend, choco_backend, scoop_backend,
 )
 
 # Ordered list of all supported backends
 _ALL_BACKENDS = [
     pacman_backend, apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
+    winget_backend, choco_backend, scoop_backend,
     flatpak_backend, snap_backend, pip_backend,
 ]
 # Cache of currently active backends — call reload_backends() to refresh
@@ -24,12 +27,15 @@ _os_family = None  # Cached OS family string
 
 def detect_os_family():
     """
-    Detect the current Linux distribution family by reading /etc/os-release.
-    Returns a set of lowercase ID strings (e.g. {"arch", "ubuntu", "debian"}).
-    Includes both ID and ID_LIKE values so derivative distros match their parents.
+    Detect the current OS. Returns a set of lowercase ID strings.
+    For Linux, reads /etc/os-release. For Windows, returns {"windows"}.
     """
     global _os_family
     if _os_family is not None:
+        return _os_family
+
+    if platform.system() == "Windows":
+        _os_family = {"windows"}
         return _os_family
 
     ids = set()
@@ -61,6 +67,10 @@ _BACKEND_COMPAT = {
     "portage": {"gentoo", "funtoo", "chromeos"},
     "xbps":    {"void"},
     "apk":     {"alpine"},
+    "apk":     {"alpine"},
+    "winget":  {"windows"},
+    "choco":   {"windows"},
+    "scoop":   {"windows"},
     "flatpak": None,  # universal
     "snap":    None,  # universal
     "pip":     None,  # universal
@@ -177,18 +187,45 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
     def worker():
         # Build command based on backend
         if backend_id == "pacman":
-            cmd = [terminal, "-e", "yay", "-S", pkg_id]
+            cmd = ["yay", "-S", pkg_id]
         elif backend_id == "flatpak":
-            cmd = [terminal, "-e", "flatpak", "install", "flathub", pkg_id]
+            cmd = ["flatpak", "install", "flathub", pkg_id]
         elif backend_id == "snap":
-            cmd = [terminal, "-e", "sudo", "snap", "install", pkg_id]
+            cmd = ["sudo", "snap", "install", pkg_id]
         elif backend_id == "pip":
             pip = "pip" if shutil.which("pip") else "pip3"
-            cmd = [terminal, "-e", "sudo", pip, "install", "--break-system-packages", pkg_id]
+            if platform.system() == "Windows":
+                cmd = [pip, "install", pkg_id]
+            else:
+                cmd = ["sudo", pip, "install", "--break-system-packages", pkg_id]
+        elif backend_id == "winget":
+            cmd = ["winget", "install", "-e", "--id", pkg_id]
+        elif backend_id == "choco":
+            cmd = ["choco", "install", pkg_id, "-y"]
+        elif backend_id == "scoop":
+            cmd = ["scoop", "install", pkg_id]
         else:
             return
+
+        # Wrap command in terminal spawn logic
+        if platform.system() == "Windows":
+            # On Windows, 'start cmd /k' opens a new terminal window that stays open
+            # We use subprocess.call with shell=True to execute the 'start' command
+            full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
+            try:
+                subprocess.Popen(full_cmd, shell=True)
+                time.sleep(1) # Give it time to spawn
+                if on_finish:
+                    on_finish()
+                return
+            except Exception as e:
+                print(f"[pkg_manager] install error: {e}")
+                return
+        else:
+            full_cmd = [terminal, "-e"] + cmd
+
         try:
-            proc = subprocess.Popen(cmd)
+            proc = subprocess.Popen(full_cmd)
             proc.wait()
             time.sleep(0.5)
             if on_finish:
@@ -208,18 +245,43 @@ def remove_package(pkg, terminal="alacritty", on_finish=None):
 
     def worker():
         if backend_id == "pacman":
-            cmd = [terminal, "-e", "sudo", "pacman", "-Rns", pkg_id]
+            cmd = ["sudo", "pacman", "-Rns", pkg_id]
         elif backend_id == "flatpak":
-            cmd = [terminal, "-e", "flatpak", "uninstall", pkg_id]
+            cmd = ["flatpak", "uninstall", pkg_id]
         elif backend_id == "snap":
-            cmd = [terminal, "-e", "sudo", "snap", "remove", pkg_id]
+            cmd = ["sudo", "snap", "remove", pkg_id]
         elif backend_id == "pip":
             pip = "pip" if shutil.which("pip") else "pip3"
-            cmd = [terminal, "-e", "sudo", pip, "uninstall", "-y", pkg_id]
+            if platform.system() == "Windows":
+                cmd = [pip, "uninstall", "-y", pkg_id]
+            else:
+                cmd = ["sudo", pip, "uninstall", "-y", pkg_id]
+        elif backend_id == "winget":
+            cmd = ["winget", "uninstall", "-e", "--id", pkg_id]
+        elif backend_id == "choco":
+            cmd = ["choco", "uninstall", pkg_id, "-y"]
+        elif backend_id == "scoop":
+            cmd = ["scoop", "uninstall", pkg_id]
         else:
             return
+
+        # Wrap command in terminal spawn logic
+        if platform.system() == "Windows":
+            full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
+            try:
+                subprocess.Popen(full_cmd, shell=True)
+                time.sleep(1)
+                if on_finish:
+                    on_finish()
+                return
+            except Exception as e:
+                print(f"[pkg_manager] remove error: {e}")
+                return
+        else:
+            full_cmd = [terminal, "-e"] + cmd
+
         try:
-            proc = subprocess.Popen(cmd)
+            proc = subprocess.Popen(full_cmd)
             proc.wait()
             time.sleep(0.5)
             if on_finish:

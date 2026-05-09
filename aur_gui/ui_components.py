@@ -15,6 +15,10 @@ BACKEND_COLORS = {
     "portage": "#54487A",  # Gentoo purple
     "xbps":    "#478061",  # Void Linux teal
     "apk":     "#0D597F",  # Alpine blue
+    # Windows backends
+    "winget":  "#00a4ef",  # Windows blue
+    "choco":   "#8b4513",  # SaddleBrown
+    "scoop":   "#ff8c00",  # DarkOrange
 }
 
 BACKEND_LABELS = {
@@ -29,6 +33,10 @@ BACKEND_LABELS = {
     "portage": "Portage",
     "xbps":    "XBPS",
     "apk":     "APK",
+    # Windows backends
+    "winget":  "Winget",
+    "choco":   "Choco",
+    "scoop":   "Scoop",
 }
 
 

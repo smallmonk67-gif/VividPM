@@ -10,7 +10,20 @@ def get_native_file_picker(title="Select File"):
     Attempts to open the native system file explorer (Zenity or KDialog)
     with filters for all supported package formats.
     """
-    # Filters covering all supported package managers
+    import platform
+    is_windows = platform.system() == "Windows"
+    
+    if is_windows:
+        # Fallback to standard Tkinter dialog for Windows with Windows extensions
+        return ctk.filedialog.askopenfilename(
+            title=title,
+            filetypes=[
+                ("Windows Installers", "*.exe *.msi"),
+                ("All Files", "*.*"),
+            ]
+        )
+
+    # Filters covering all supported Linux package managers
     filter_label = "All Packages (*.pkg.tar.*, *.deb, *.rpm, PKGBUILD)"
     filter_patterns = "*.pkg.tar.zst *.pkg.tar.xz *.deb *.rpm PKGBUILD"
 
@@ -47,7 +60,9 @@ def get_native_file_picker(title="Select File"):
     return ctk.filedialog.askopenfilename(
         title=title,
         filetypes=[
-            ("Arch Packages", "*.pkg.tar.zst *.pkg.tar.xz"),
+            ("Linux Packages", "*.pkg.tar.zst *.pkg.tar.xz *.deb *.rpm"),
             ("PKGBUILD", "PKGBUILD"),
+            ("All Files", "*.*"),
         ]
     )
+

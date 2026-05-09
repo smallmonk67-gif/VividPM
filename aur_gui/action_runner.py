@@ -13,13 +13,22 @@ AUR_HELPER = "yay"
 
 def _run_in_terminal(cmd, on_finish=None, cwd=None):
     """Run a command in a terminal, call on_finish when the terminal closes."""
+    import platform
     def worker():
         try:
-            proc = subprocess.Popen(cmd, cwd=cwd)
-            proc.wait()
-            time.sleep(0.5)
-            if on_finish:
-                on_finish()
+            if platform.system() == "Windows":
+                # For Windows, wrap the command in start cmd /k
+                full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
+                subprocess.Popen(full_cmd, shell=True, cwd=cwd)
+                time.sleep(1) # Command spawn delay, wait() doesn't work well with start cmd
+                if on_finish:
+                    on_finish()
+            else:
+                proc = subprocess.Popen(cmd, cwd=cwd)
+                proc.wait()
+                time.sleep(0.5)
+                if on_finish:
+                    on_finish()
         except Exception as e:
             print(f"[action_runner] error: {e}")
 
@@ -30,11 +39,21 @@ def update_system(on_finish=None):
     """Launch terminal to update the whole system (yay -Syu + flatpak update)."""
     # Run yay first, then flatpak update if available
     import shutil
+    import platform
     cmds = []
-    if shutil.which(AUR_HELPER):
-        cmds.append([TERMINAL, "-e", AUR_HELPER, "-Syu"])
-    if shutil.which("flatpak"):
-        cmds.append([TERMINAL, "-e", "flatpak", "update"])
+    
+    if platform.system() == "Windows":
+        if shutil.which("winget"):
+            cmds.append(["winget", "upgrade", "--all"])
+        if shutil.which("choco"):
+            cmds.append(["choco", "upgrade", "all", "-y"])
+        if shutil.which("scoop"):
+            cmds.append(["scoop", "update", "*"])
+    else:
+        if shutil.which(AUR_HELPER):
+            cmds.append([TERMINAL, "-e", AUR_HELPER, "-Syu"])
+        if shutil.which("flatpak"):
+            cmds.append([TERMINAL, "-e", "flatpak", "update"])
 
     if not cmds:
         return
@@ -42,8 +61,12 @@ def update_system(on_finish=None):
     def worker():
         for cmd in cmds:
             try:
-                proc = subprocess.Popen(cmd)
-                proc.wait()
+                if platform.system() == "Windows":
+                    full_cmd = f"start /wait cmd /c \"{' '.join(cmd)}\""
+                    subprocess.call(full_cmd, shell=True)
+                else:
+                    proc = subprocess.Popen(cmd)
+                    proc.wait()
             except Exception as e:
                 print(f"[action_runner] update error: {e}")
         time.sleep(0.5)
@@ -80,6 +103,14 @@ def build_local_package(file_path, on_finish=None):
             cmd = [TERMINAL, "-e", "sudo", "zypper", "install", file_path]
         else:
             cmd = [TERMINAL, "-e", "sudo", "rpm", "-i", file_path]
+        _run_in_terminal(cmd, on_finish)
+    elif file_path.endswith(".msi"):
+        # Windows Installer
+        cmd = ["msiexec", "/i", file_path]
+        _run_in_terminal(cmd, on_finish)
+    elif file_path.endswith(".exe"):
+        # Windows Executable
+        cmd = [file_path]
         _run_in_terminal(cmd, on_finish)
     else:
         print(f"[action_runner] Unknown package format: {file_path}")
