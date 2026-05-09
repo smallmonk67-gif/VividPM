@@ -112,15 +112,31 @@ class App(ctk.CTk):
         self.status_label.configure(text="Loading installed apps...")
         self.list_frame.clear()
         self.list_frame.stop_loading()
-        self.list_frame.start_loading(count=1)
+        self.list_frame.start_loading(count=len(self._backends))
         self.detail_frame.hide_content()
 
-        def on_done(results):
-            if req_id == self._current_request_id:
-                self.after(0, self._update_list, results, "installed apps")
-                self.after(0, self.list_frame.stop_loading)
+        # Shared results accumulator
+        self._homepage_results = []
+        self._homepage_expected = len(self._backends)
+        self._homepage_done = 0
 
-        pkg_manager.async_get_installed(on_done)
+        def on_backend_done(results, backend_id):
+            if req_id != self._current_request_id:
+                return
+            
+            with self._search_lock:
+                self._homepage_results.extend(results)
+                self._homepage_done += 1
+                done_count = self._homepage_done
+
+            self.after(0, self._append_homepage_results, results, done_count)
+
+        pkg_manager.async_get_installed(on_backend_done)
+
+    def _append_homepage_results(self, new_results, done_count):
+        self.status_label.configure(text=f"{len(self._homepage_results)} packages (installed apps)")
+        self.list_frame.add_packages(new_results)
+        self.list_frame.stop_one_backend()
 
     # ── Search ────────────────────────────────────────────────────
     def handle_search(self, query):

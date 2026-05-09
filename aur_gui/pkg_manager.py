@@ -128,12 +128,19 @@ def search_all(query: str, callback):
 
 
 def async_get_installed(callback):
-    """Fetch installed packages from all backends in a background thread."""
-    def worker():
-        results = get_installed_all()
-        callback(results)
+    """Fetch installed packages from all backends in background threads, streaming results."""
+    backends = get_available_backends()
 
-    threading.Thread(target=worker, daemon=True).start()
+    def worker(backend):
+        try:
+            results = backend.get_installed()
+            callback(results, backend.BACKEND_ID)
+        except Exception as e:
+            print(f"[pkg_manager] get_installed error in {backend.BACKEND_ID}: {e}")
+            callback([], backend.BACKEND_ID)
+
+    for backend in backends:
+        threading.Thread(target=worker, args=(backend,), daemon=True).start()
 
 
 def async_fetch_extended_info(pkg, callback):
