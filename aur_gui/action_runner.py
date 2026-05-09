@@ -54,15 +54,35 @@ def update_system(on_finish=None):
 
 
 def build_local_package(file_path, on_finish=None):
-    """Launch terminal to build or install a local package."""
+    """Launch terminal to build or install a local package file."""
     import os
-    if os.path.basename(file_path) == "PKGBUILD":
+    basename = os.path.basename(file_path)
+
+    if basename == "PKGBUILD":
+        # Arch: build from source
         dir_path = os.path.dirname(file_path)
         cmd = [TERMINAL, "--working-directory", dir_path, "-e", "makepkg", "-si"]
         _run_in_terminal(cmd, on_finish, cwd=dir_path)
-    else:
+    elif file_path.endswith((".pkg.tar.zst", ".pkg.tar.xz")):
+        # Arch: install pre-built package
         cmd = [TERMINAL, "-e", "sudo", "pacman", "-U", file_path]
         _run_in_terminal(cmd, on_finish)
+    elif file_path.endswith(".deb"):
+        # Debian/Ubuntu
+        cmd = [TERMINAL, "-e", "sudo", "dpkg", "-i", file_path]
+        _run_in_terminal(cmd, on_finish)
+    elif file_path.endswith(".rpm"):
+        # Fedora/openSUSE — prefer dnf if available, fall back to rpm
+        import shutil
+        if shutil.which("dnf"):
+            cmd = [TERMINAL, "-e", "sudo", "dnf", "install", "-y", file_path]
+        elif shutil.which("zypper"):
+            cmd = [TERMINAL, "-e", "sudo", "zypper", "install", file_path]
+        else:
+            cmd = [TERMINAL, "-e", "sudo", "rpm", "-i", file_path]
+        _run_in_terminal(cmd, on_finish)
+    else:
+        print(f"[action_runner] Unknown package format: {file_path}")
 
 
 def run_app(exec_cmd):

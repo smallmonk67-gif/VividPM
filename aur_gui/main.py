@@ -111,11 +111,14 @@ class App(ctk.CTk):
         
         self.status_label.configure(text="Loading installed apps...")
         self.list_frame.clear()
+        self.list_frame.stop_loading()
+        self.list_frame.start_loading(count=1)
         self.detail_frame.hide_content()
 
         def on_done(results):
             if req_id == self._current_request_id:
                 self.after(0, self._update_list, results, "installed apps")
+                self.after(0, self.list_frame.stop_loading)
 
         pkg_manager.async_get_installed(on_done)
 
@@ -130,7 +133,8 @@ class App(ctk.CTk):
 
         self.status_label.configure(text="Searching...")
         self.list_frame.clear()
-        self.list_frame.populate([])
+        self.list_frame.stop_loading()
+        self.list_frame.start_loading(count=len(self._backends))
         self.detail_frame.hide_content()
 
         # Accumulate results from parallel backends
@@ -147,15 +151,18 @@ class App(ctk.CTk):
                 self._search_done += 1
                 done_count = self._search_done
 
-            # Efficiently append only the new results to the list
+            # Append results and tick down one backend from the spinner
             self.after(0, self._append_search_results, results, done_count)
 
         pkg_manager.search_all(query, on_backend_results)
 
     def _append_search_results(self, new_results, done_count):
         """Add new results to the list without clearing existing ones (faster)."""
-        self.status_label.configure(text=f"{len(self._search_results)} packages ({done_count}/{self._search_expected} backends)")
+        self.status_label.configure(
+            text=f"{len(self._search_results)} packages ({done_count}/{self._search_expected} backends)"
+        )
         self.list_frame.add_packages(new_results)
+        self.list_frame.stop_one_backend()  # tick spinner down by one
 
     def _update_list(self, results, label=""):
         self.status_label.configure(text=f"{len(results)} packages" + (f" ({label})" if label else ""))

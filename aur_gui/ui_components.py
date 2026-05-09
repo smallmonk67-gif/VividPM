@@ -4,10 +4,17 @@ from aur_gui import icon_resolver
 
 # Premium color palette
 BACKEND_COLORS = {
-    "pacman":  "#0099ff", # Brighter Arch blue
-    "flatpak": "#4180d4", # Deep Flatpak blue
-    "snap":    "#e95420", # Vibrant Snap orange
-    "pip":     "#3775a9", # Python blue
+    "pacman":  "#0099ff",  # Brighter Arch blue
+    "flatpak": "#4180d4",  # Deep Flatpak blue
+    "snap":    "#e95420",  # Vibrant Snap orange
+    "pip":     "#3775a9",  # Python blue
+    # New distro backends
+    "apt":     "#dd4814",  # Ubuntu/Debian orange
+    "dnf":     "#3C6EB4",  # Fedora blue
+    "zypper":  "#73BA25",  # openSUSE green
+    "portage": "#54487A",  # Gentoo purple
+    "xbps":    "#478061",  # Void Linux teal
+    "apk":     "#0D597F",  # Alpine blue
 }
 
 BACKEND_LABELS = {
@@ -15,6 +22,13 @@ BACKEND_LABELS = {
     "flatpak": "Flatpak",
     "snap":    "Snap",
     "pip":     "pip",
+    # New distro backends
+    "apt":     "APT",
+    "dnf":     "DNF",
+    "zypper":  "Zypper",
+    "portage": "Portage",
+    "xbps":    "XBPS",
+    "apk":     "APK",
 }
 
 
@@ -103,6 +117,9 @@ class BackendFilterBar(ctk.CTkFrame):
 
 
 class PackageListFrame(ctk.CTkScrollableFrame):
+    # Braille spinner frames for loading animation
+    _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
     def __init__(self, master, on_select_callback, **kwargs):
         super().__init__(master, **kwargs)
         self.on_select_callback = on_select_callback
@@ -110,8 +127,61 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         self.selected_item = None
         self._all_packages = []
         self._active_backends = None  # None = show all
+        self._spinner_idx = 0
+        self._spinner_job = None
+        self._loading_backends = 0  # count of in-flight backend searches
+
+        # Spinner row — shown at bottom of list when loading
+        self._spinner_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._spinner_label = ctk.CTkLabel(
+            self._spinner_frame,
+            text="",
+            font=ctk.CTkFont(size=16),
+            text_color=("gray40", "gray60"),
+        )
+        self._spinner_label.pack(side="left", padx=(8, 4))
+        self._spinner_text = ctk.CTkLabel(
+            self._spinner_frame,
+            text="Searching…",
+            font=ctk.CTkFont(size=13),
+            text_color=("gray40", "gray60"),
+        )
+        self._spinner_text.pack(side="left")
+
         self._bind_scroll(self)
 
+    # ── Spinner control ──────────────────────────────────────────
+    def start_loading(self, count=1):
+        """Call once per in-flight backend. Shows spinner."""
+        self._loading_backends += count
+        if self._spinner_job is None:
+            self._spinner_frame.pack(fill="x", padx=10, pady=6)
+            self._animate_spinner()
+
+    def stop_one_backend(self):
+        """Call when one backend finishes. Hides spinner when all done."""
+        self._loading_backends = max(0, self._loading_backends - 1)
+        if self._loading_backends == 0:
+            self._hide_spinner()
+
+    def stop_loading(self):
+        """Force-stop the spinner immediately."""
+        self._loading_backends = 0
+        self._hide_spinner()
+
+    def _animate_spinner(self):
+        frame = self._SPINNER_FRAMES[self._spinner_idx % len(self._SPINNER_FRAMES)]
+        self._spinner_label.configure(text=frame)
+        self._spinner_idx += 1
+        self._spinner_job = self.after(80, self._animate_spinner)
+
+    def _hide_spinner(self):
+        if self._spinner_job:
+            self.after_cancel(self._spinner_job)
+            self._spinner_job = None
+        self._spinner_frame.pack_forget()
+
+    # ── Data methods ─────────────────────────────────────────────
     def populate(self, packages):
         self._all_packages = packages
         self.clear()
@@ -119,7 +189,10 @@ class PackageListFrame(ctk.CTkScrollableFrame):
 
     def add_packages(self, packages):
         """Append new packages to the list without clearing existing ones."""
-        # Filter if needed
+        # Temporarily unpack spinner so new items go before it
+        if self._spinner_job is not None:
+            self._spinner_frame.pack_forget()
+
         to_add = packages
         if self._active_backends is not None:
             to_add = [p for p in to_add if p.get("backend") in self._active_backends]
@@ -128,8 +201,11 @@ class PackageListFrame(ctk.CTkScrollableFrame):
             item = PackageListItem(self, pkg, self.on_item_click)
             item.pack(fill="x", padx=5, pady=2)
             self.item_frames.append(item)
-            # Bind scroll to the frame itself (recursive binding is too slow)
             self._bind_scroll(item)
+
+        # Re-pack spinner at the end if still loading
+        if self._spinner_job is not None:
+            self._spinner_frame.pack(fill="x", padx=10, pady=6)
 
     def apply_filter(self, active_backends):
         self._active_backends = active_backends

@@ -8,13 +8,11 @@ import customtkinter as ctk
 def get_native_file_picker(title="Select File"):
     """
     Attempts to open the native system file explorer (Zenity or KDialog)
-    enforcing filters for Arch package files.
+    with filters for all supported package formats.
     """
-    # Define Arch-specific filters
-    # Zenity: "Label | *.ext1 *.ext2"
-    # KDialog: "*.ext1 *.ext2 | Label"
-    filter_label = "Arch Packages (PKGBUILD, *.pkg.tar.*)"
-    filter_patterns = "*.pkg.tar.zst *.pkg.tar.xz PKGBUILD"
+    # Filters covering all supported package managers
+    filter_label = "All Packages (*.pkg.tar.*, *.deb, *.rpm, PKGBUILD)"
+    filter_patterns = "*.pkg.tar.zst *.pkg.tar.xz *.deb *.rpm PKGBUILD"
 
     # Try Zenity (GNOME/GTK)
     if shutil.which("zenity"):
