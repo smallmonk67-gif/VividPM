@@ -10,7 +10,7 @@ import threading
 import urllib.request
 import urllib.parse
 
-CACHE_FILE = os.path.join(os.path.dirname(__file__), "..", "apps_cache.json")
+CACHE_FILE = "/tmp/vividpm_apps_cache.json"
 AUR_RPC_BASE_URL = "https://aur.archlinux.org/rpc/v5"
 
 BACKEND_ID = "pacman"
