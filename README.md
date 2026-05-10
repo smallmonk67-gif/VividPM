@@ -61,16 +61,10 @@ VividPM automatically detects which tools are installed on your system and will 
 VividPM is fully portable and comes with smart launchers for every platform.
 
 #### 🐧 On Linux:
-Run the shell script:
-```bash
-./run.sh
-```
+Run `./run.sh` or use the **`vividpm.desktop`** file for a themed app-menu experience.
 
 #### 🪟 On Windows:
-Double-click **`run.bat`** or run the PowerShell script:
-```powershell
-.\run.ps1
-```
+Run `run.bat` or `run.ps1`. Tip: Create a desktop shortcut and use the included **`icon.ico`** for a native look.
 
 ---
 

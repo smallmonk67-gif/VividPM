@@ -42,11 +42,14 @@ def get_installed():
         except ValueError:
             id_start, ver_start = 30, 70 # Fallback
 
-        for line in lines[2:]:
+        for line in lines:
             if len(line) < id_start: continue
             if line.strip().replace("-", "").replace(" ", "") == "": continue
+            
             name = line[:id_start].strip()
             pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
+            
+            if name == "Name" and pkg_id == "Id": continue # Skip header line
             version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
 
             if not name or not pkg_id: continue
@@ -90,11 +93,14 @@ def search(query: str):
         except ValueError:
             id_start, ver_start = 30, 70
 
-        for line in lines[2:]:
+        for line in lines:
             if len(line) < id_start: continue
             if line.strip().replace("-", "").replace(" ", "") == "": continue
+            
             name = line[:id_start].strip()
             pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
+            
+            if name == "Name" and pkg_id == "Id": continue # Skip header line
             version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
 
             if not name or not pkg_id: continue

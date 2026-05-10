@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Vivid Package Manager
+Comment=The ultimate multi-platform package manager
+Exec=/home/yitteng/.gemini/antigravity/scratch/VividPM/run.sh
+Icon=/home/yitteng/.gemini/antigravity/scratch/VividPM/icon.png
+Terminal=false
+Type=Application
+Categories=System;Utility;
+StartupNotify=true
