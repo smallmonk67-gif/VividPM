@@ -20,6 +20,9 @@ class App(ctk.CTk):
 
         self.title("Vivid Package Manager")
         self.geometry("980x650")
+        
+        # Stability fix for Windows: ensure initial draw completes
+        self.update()
 
         # Set icon
         try:

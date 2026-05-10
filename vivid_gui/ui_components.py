@@ -207,35 +207,40 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         if self._active_backends is not None:
             to_add = [p for p in to_add if p.get("backend") in self._active_backends]
 
-        for pkg in to_add:
+        # Performance cap: Don't render more than 100 items at once to avoid Windows lag
+        current_count = len(self.item_frames)
+        remaining_slots = 100 - current_count
+        
+        if remaining_slots <= 0:
+            return
+
+        for pkg in to_add[:remaining_slots]:
             item = PackageListItem(self, pkg, self.on_item_click)
             item.pack(fill="x", padx=5, pady=2)
             self.item_frames.append(item)
-            self._bind_scroll(item)
+            # Only bind to the frame itself to reduce overhead
+            self._bind_scroll_simple(item)
 
         # Re-pack spinner at the end if still loading
         if self._spinner_job is not None:
             self._spinner_frame.pack(fill="x", padx=10, pady=6)
 
-    def apply_filter(self, active_backends):
-        self._active_backends = active_backends
-        self.clear()
-        self.add_packages(self._all_packages)
-
-    def _bind_scroll(self, widget):
+    def _bind_scroll_simple(self, widget):
         def on_mouse_scroll(event):
-            # Handle Linux (Button-4/5) and Windows/macOS (MouseWheel)
             if event.num == 4 or (hasattr(event, "delta") and event.delta > 0):
                 self._parent_canvas.yview("scroll", -1, "units")
             elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0):
                 self._parent_canvas.yview("scroll", 1, "units")
 
-        widget.bind("<Button-4>", on_mouse_scroll, add="+")
-        widget.bind("<Button-5>", on_mouse_scroll, add="+")
         widget.bind("<MouseWheel>", on_mouse_scroll, add="+")
-        
+        # For sub-widgets, we only bind the main ones manually or skip
         for child in widget.winfo_children():
-            self._bind_scroll(child)
+            child.bind("<MouseWheel>", on_mouse_scroll, add="+")
+
+    def apply_filter(self, active_backends):
+        self._active_backends = active_backends
+        self.clear()
+        self.add_packages(self._all_packages)
 
     def clear(self):
         for item in self.item_frames:
@@ -558,21 +563,18 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self._set_text(self.required_text, required or "None")
 
         # Bind scrolling to all new content
-        self._bind_scroll(self)
+        self._bind_scroll_simple(self)
 
-    def _bind_scroll(self, widget):
+    def _bind_scroll_simple(self, widget):
         def on_mouse_scroll(event):
             if event.num == 4 or (hasattr(event, "delta") and event.delta > 0):
                 self._parent_canvas.yview("scroll", -1, "units")
             elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0):
                 self._parent_canvas.yview("scroll", 1, "units")
 
-        widget.bind("<Button-4>", on_mouse_scroll, add="+")
-        widget.bind("<Button-5>", on_mouse_scroll, add="+")
         widget.bind("<MouseWheel>", on_mouse_scroll, add="+")
-        
         for child in widget.winfo_children():
-            self._bind_scroll(child)
+            child.bind("<MouseWheel>", on_mouse_scroll, add="+")
 
     def handle_install(self):
         if self.current_pkg:
