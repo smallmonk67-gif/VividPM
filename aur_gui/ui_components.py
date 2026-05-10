@@ -261,6 +261,7 @@ class PackageListItem(ctk.CTkFrame):
             fg_color=("gray90", "#252525"), 
             border_width=1, 
             border_color=("gray80", "#333333"),
+            width=300, # Fixed width for list items to prevent jumping
             **kwargs
         )
         self.pkg_data = pkg_data
@@ -378,6 +379,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
 
         self.hero_icon = ctk.CTkLabel(self.hero_frame, text="")
         self.hero_icon.grid(row=0, column=0, padx=(25, 0), pady=20, sticky="w")
+        self.hero_icon.configure(width=64, height=64) # Force size
 
         self.title_label = ctk.CTkLabel(
             self.hero_frame, text="Select a package", 
@@ -456,6 +458,11 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self.required_text = ctk.CTkTextbox(self.rel_frame, height=65, wrap="word")
         self.required_text.pack(fill="x")
         self.required_text.configure(state="disabled")
+
+        # Set default font for textboxes to avoid invisible text on Windows
+        self.desc_textbox.configure(font=ctk.CTkFont(size=13))
+        self.depends_text.configure(font=ctk.CTkFont(size=12))
+        self.required_text.configure(font=ctk.CTkFont(size=12))
 
         self.hide_content()
 

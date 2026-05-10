@@ -50,7 +50,7 @@ class App(ctk.CTk):
 
         # Layout
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=2)
+        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
         # Threading and search state
@@ -63,22 +63,22 @@ class App(ctk.CTk):
         self.top_frame.grid_columnconfigure(0, weight=1)
 
         self.search_bar = SearchBar(self.top_frame, self.handle_search)
-        self.search_bar.grid(row=0, column=0, sticky="ew")
+        self.search_bar.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
-        self.status_label = ctk.CTkLabel(self.top_frame, text="")
-        self.status_label.grid(row=0, column=1, padx=10)
+        self.status_label = ctk.CTkLabel(self.top_frame, text="", font=ctk.CTkFont(size=12))
+        self.status_label.grid(row=0, column=1, padx=5)
 
         self.update_btn = ctk.CTkButton(
-            self.top_frame, text="Update All", command=self.handle_update,
+            self.top_frame, text="Update All", width=100, command=self.handle_update,
             fg_color="purple", hover_color="darkmagenta"
         )
-        self.update_btn.grid(row=0, column=2, padx=(0, 5))
+        self.update_btn.grid(row=0, column=2, padx=5)
 
         self.build_local_btn = ctk.CTkButton(
-            self.top_frame, text="Build Local...", command=self.handle_build_local,
+            self.top_frame, text="Build Local", width=100, command=self.handle_build_local,
             fg_color="#b8860b", hover_color="#8b6508"
         )
-        self.build_local_btn.grid(row=0, column=3, padx=(0, 10))
+        self.build_local_btn.grid(row=0, column=3, padx=(5, 10))
 
         # ── Filter bar ───────────────────────────────────────────
         self.filter_bar = BackendFilterBar(self, self._backends, self.handle_filter_change)
