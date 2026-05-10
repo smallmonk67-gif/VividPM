@@ -11,6 +11,7 @@ from aur_gui.backends import (
     apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
+    windows_native_backend,
 )
 from aur_gui import utils
 
@@ -19,6 +20,7 @@ _ALL_BACKENDS = [
     pacman_backend, apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
+    windows_native_backend,
     flatpak_backend, snap_backend, pip_backend,
 ]
 # Cache of currently active backends — call reload_backends() to refresh
@@ -72,6 +74,7 @@ _BACKEND_COMPAT = {
     "winget":  {"windows"},
     "choco":   {"windows"},
     "scoop":   {"windows"},
+    "windows_native": {"windows"},
     "flatpak": None,  # universal
     "snap":    None,  # universal
     "pip":     None,  # universal

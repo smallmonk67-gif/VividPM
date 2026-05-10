@@ -30,32 +30,37 @@ def get_installed():
             return []
         
         apps = []
-        lines = res.stdout.split("\n")
-        # Winget output format is a table: Name, Id, Version, Available, Source
-        if len(lines) < 3: return []
+        lines = [line for line in res.stdout.split("\n") if line.strip()]
+        if len(lines) < 2: return []
         
-        # very basic parsing since column widths vary
+        header = lines[0]
+        # Find column start positions
+        try:
+            id_start = header.index("Id")
+            ver_start = header.index("Version")
+        except ValueError:
+            id_start, ver_start = 30, 70 # Fallback
+
         for line in lines[2:]:
-            line = line.strip()
-            if not line: continue
+            if len(line) < id_start: continue
             
-            # Approximate parsing by splitting on 2+ spaces
-            parts = [p.strip() for p in line.split("  ") if p.strip()]
-            if len(parts) >= 2:
-                name = parts[0]
-                pkg_id = parts[1]
-                
-                apps.append({
-                    "Name": name,
-                    "ID": pkg_id,
-                    "Version": parts[2] if len(parts) > 2 else "",
-                    "Description": f"Installed via Winget",
-                    "is_installed": True,
-                    "is_app": True,
-                    "Exec": "",
-                    "backend": BACKEND_ID,
-                    "PackageName": pkg_id,
-                })
+            name = line[:id_start].strip()
+            pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
+            version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
+
+            if not name or not pkg_id: continue
+            
+            apps.append({
+                "Name": name,
+                "ID": pkg_id,
+                "Version": version,
+                "Description": f"Installed via Winget",
+                "is_installed": True,
+                "is_app": True,
+                "Exec": "", # We'll try to launch by name
+                "backend": BACKEND_ID,
+                "PackageName": pkg_id,
+            })
         _INSTALLED_CACHE = apps
         return apps
     except Exception as e:
@@ -73,29 +78,36 @@ def search(query: str):
             return []
 
         apps = []
-        lines = res.stdout.split("\n")
-        if len(lines) < 3: return []
+        lines = [line for line in res.stdout.split("\n") if line.strip()]
+        if len(lines) < 2: return []
         
+        header = lines[0]
+        try:
+            id_start = header.index("Id")
+            ver_start = header.index("Version")
+        except ValueError:
+            id_start, ver_start = 30, 70
+
         for line in lines[2:]:
-            line = line.strip()
-            if not line: continue
+            if len(line) < id_start: continue
             
-            parts = [p.strip() for p in line.split("  ") if p.strip()]
-            if len(parts) >= 2:
-                name = parts[0]
-                pkg_id = parts[1]
+            name = line[:id_start].strip()
+            pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
+            version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
+
+            if not name or not pkg_id: continue
                 
-                apps.append({
-                    "Name": name,
-                    "ID": pkg_id,
-                    "Version": parts[2] if len(parts) > 2 else "",
-                    "Description": f"Winget Package",
-                    "is_installed": False, # Winget search doesn't clearly mark installed
-                    "is_app": False,
-                    "Exec": "",
-                    "backend": BACKEND_ID,
-                    "PackageName": pkg_id,
-                })
+            apps.append({
+                "Name": name,
+                "ID": pkg_id,
+                "Version": version,
+                "Description": f"Winget Package",
+                "is_installed": False,
+                "is_app": False,
+                "Exec": "",
+                "backend": BACKEND_ID,
+                "PackageName": pkg_id,
+            })
         return apps
     except Exception as e:
         print(f"[winget] search error: {e}")

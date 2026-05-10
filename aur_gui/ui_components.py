@@ -19,6 +19,7 @@ BACKEND_COLORS = {
     "winget":  "#00a4ef",  # Windows blue
     "choco":   "#8b4513",  # SaddleBrown
     "scoop":   "#ff8c00",  # DarkOrange
+    "windows_native": "#0078d4", # Windows Native blue
 }
 
 BACKEND_LABELS = {
@@ -37,6 +38,7 @@ BACKEND_LABELS = {
     "winget":  "Winget",
     "choco":   "Choco",
     "scoop":   "Scoop",
+    "windows_native": "Windows",
 }
 
 
