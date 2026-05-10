@@ -14,11 +14,18 @@ sys.path.insert(0, BASE_DIR)
 
 if __name__ == "__main__":
     # Check if a local virtual environment exists and we aren't using it
-    venv_python = os.path.join(BASE_DIR, ".venv", "bin", "python")
+    import platform
+    if platform.system() == "Windows":
+        venv_python = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
+    else:
+        venv_python = os.path.join(BASE_DIR, ".venv", "bin", "python")
+
     if os.path.exists(venv_python) and sys.executable != venv_python:
         print(f"Tip: A local virtual environment was found. You might want to run:")
         print(f"  {venv_python} {__file__}")
         print("-" * 40)
+        # Use the venv python if we are being called via a simple 'python launcher.py' 
+        # and a venv exists (optional improvement)
 
     try:
         import customtkinter as ctk

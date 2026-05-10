@@ -573,6 +573,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         if self.current_pkg:
             self.on_remove(self.current_pkg)
 
+    def handle_run(self):
         if self.current_pkg and self.on_run:
             exec_cmd = self.current_pkg.get("Exec") or self.current_pkg.get("Name", "")
             if exec_cmd:
