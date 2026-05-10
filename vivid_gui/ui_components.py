@@ -273,7 +273,7 @@ class PackageListItem(ctk.CTkFrame):
             fg_color=("gray90", "#252525"), 
             border_width=1, 
             border_color=("gray80", "#333333"),
-            width=300, # Fixed width for list items to prevent jumping
+            width=380, # Increased width for better name visibility
             **kwargs
         )
         self.pkg_data = pkg_data
@@ -308,8 +308,12 @@ class PackageListItem(ctk.CTkFrame):
         top_row.grid_columnconfigure(0, weight=1)
 
         title_display = name
+        # Truncate long names for the list view to keep the UI clean
+        if len(title_display) > 38:
+            title_display = title_display[:35] + "..."
+            
         if is_installed:
-            title_display = f"✓ {name}"
+            title_display = f"✓ {title_display}"
 
         self.name_label = ctk.CTkLabel(
             top_row, 

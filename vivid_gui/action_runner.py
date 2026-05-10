@@ -126,9 +126,23 @@ def run_app(exec_cmd):
     import os
     try:
         if platform.system() == "Windows":
-            # On Windows, we can use 'start' to launch by name or path
-            # shell=True is needed for the 'start' command
-            subprocess.Popen(f'start "" "{exec_cmd}"', shell=True)
+            # If it's a shell:AppsFolder command, run it directly
+            if exec_cmd.startswith("shell:"):
+                subprocess.Popen(f'start "" "{exec_cmd}"', shell=True)
+                return
+
+            # Otherwise, try to find a matching Start Menu app if the direct launch fails
+            # This allows winget/scoop apps to be launched by their display name
+            try:
+                # Try direct start first (in case it's a path or in PATH)
+                subprocess.Popen(f'start "" "{exec_cmd}"', shell=True)
+            except:
+                # Fallback: Search StartApps for a name match
+                cmd = ["powershell", "-NoProfile", "-Command", f"Get-StartApps | Where-Object {{$_.Name -eq '{exec_cmd}'}} | Select-Object -ExpandProperty AppID"]
+                res = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                app_id = res.stdout.strip()
+                if app_id:
+                    subprocess.Popen(f'start "" "shell:AppsFolder\\{app_id}"', shell=True)
         else:
             cmd = shlex.split(exec_cmd)
             subprocess.Popen(cmd, start_new_session=True)
