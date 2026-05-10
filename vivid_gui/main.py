@@ -4,14 +4,14 @@ import threading
 import tkinter as tk
 import customtkinter as ctk
 
-# Ensure aur_gui package is importable when run as a script
+# Ensure vivid_gui package is importable when run as a script
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import aur_gui.pkg_manager as pkg_manager
-import aur_gui.action_runner as action_runner
-import aur_gui.installer as installer
-import aur_gui.utils as utils
-from aur_gui.ui_components import SearchBar, BackendFilterBar, PackageListFrame, PackageDetailFrame
+import vivid_gui.pkg_manager as pkg_manager
+import vivid_gui.action_runner as action_runner
+import vivid_gui.installer as installer
+import vivid_gui.utils as utils
+from vivid_gui.ui_components import SearchBar, BackendFilterBar, PackageListFrame, PackageDetailFrame
 
 
 class App(ctk.CTk):

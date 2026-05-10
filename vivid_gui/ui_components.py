@@ -1,6 +1,6 @@
 import customtkinter as ctk
 import datetime
-from aur_gui import icon_resolver
+from vivid_gui import icon_resolver
 
 # Premium color palette
 BACKEND_COLORS = {

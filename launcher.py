@@ -9,7 +9,7 @@ import sys
 # Get the directory where launcher.py is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Add this directory to the Python path so 'import aur_gui' works
+# Add this directory to the Python path so 'import vivid_gui' works
 sys.path.insert(0, BASE_DIR)
 
 if __name__ == "__main__":
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     try:
         import customtkinter as ctk
         from PIL import Image, ImageTk
-        from aur_gui.main import App
+        from vivid_gui.main import App
         
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")

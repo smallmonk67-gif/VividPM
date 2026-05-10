@@ -6,7 +6,7 @@ Package install/remove is now handled by pkg_manager.py.
 import subprocess
 import threading
 import time
-from aur_gui import utils
+from vivid_gui import utils
 
 TERMINAL = "alacritty"
 AUR_HELPER = "yay"

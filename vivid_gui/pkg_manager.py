@@ -6,14 +6,14 @@ import threading
 import shutil
 import platform
 
-from aur_gui.backends import (
+from vivid_gui.backends import (
     pacman_backend, flatpak_backend, snap_backend, pip_backend,
     apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
     windows_native_backend,
 )
-from aur_gui import utils
+from vivid_gui import utils
 
 # Ordered list of all supported backends
 _ALL_BACKENDS = [
