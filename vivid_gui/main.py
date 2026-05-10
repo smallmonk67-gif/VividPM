@@ -20,9 +20,6 @@ class App(ctk.CTk):
 
         self.title("Vivid Package Manager")
         self.geometry("980x650")
-        
-        # Stability fix for Windows: ensure initial draw completes
-        self.update()
 
         # Set icon
         try:
@@ -299,7 +296,13 @@ class App(ctk.CTk):
 
 
 if __name__ == "__main__":
-    ctk.set_appearance_mode("dark")
-    ctk.set_default_color_theme("blue")
-    app = App()
-    app.mainloop()
+    try:
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+        app = App()
+        app.mainloop()
+    except Exception as e:
+        import tkinter.messagebox as mb
+        mb.showerror("Startup Error", f"The application failed to start:\n\n{e}")
+        import traceback
+        traceback.print_exc()

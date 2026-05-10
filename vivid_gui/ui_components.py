@@ -158,7 +158,7 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         )
         self._spinner_text.pack(side="left")
 
-        self._bind_scroll(self)
+        self._bind_scroll_simple(self)
 
     # ── Spinner control ──────────────────────────────────────────
     def start_loading(self, count=1):
@@ -228,14 +228,18 @@ class PackageListFrame(ctk.CTkScrollableFrame):
     def _bind_scroll_simple(self, widget):
         def on_mouse_scroll(event):
             if event.num == 4 or (hasattr(event, "delta") and event.delta > 0):
-                self._parent_canvas.yview("scroll", -1, "units")
+                self._canvas.yview("scroll", -1, "units")
             elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0):
-                self._parent_canvas.yview("scroll", 1, "units")
+                self._canvas.yview("scroll", 1, "units")
 
         widget.bind("<MouseWheel>", on_mouse_scroll, add="+")
+        widget.bind("<Button-4>", on_mouse_scroll, add="+")
+        widget.bind("<Button-5>", on_mouse_scroll, add="+")
         # For sub-widgets, we only bind the main ones manually or skip
         for child in widget.winfo_children():
             child.bind("<MouseWheel>", on_mouse_scroll, add="+")
+            child.bind("<Button-4>", on_mouse_scroll, add="+")
+            child.bind("<Button-5>", on_mouse_scroll, add="+")
 
     def apply_filter(self, active_backends):
         self._active_backends = active_backends
@@ -568,13 +572,17 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
     def _bind_scroll_simple(self, widget):
         def on_mouse_scroll(event):
             if event.num == 4 or (hasattr(event, "delta") and event.delta > 0):
-                self._parent_canvas.yview("scroll", -1, "units")
+                self._canvas.yview("scroll", -1, "units")
             elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0):
-                self._parent_canvas.yview("scroll", 1, "units")
+                self._canvas.yview("scroll", 1, "units")
 
         widget.bind("<MouseWheel>", on_mouse_scroll, add="+")
+        widget.bind("<Button-4>", on_mouse_scroll, add="+")
+        widget.bind("<Button-5>", on_mouse_scroll, add="+")
         for child in widget.winfo_children():
             child.bind("<MouseWheel>", on_mouse_scroll, add="+")
+            child.bind("<Button-4>", on_mouse_scroll, add="+")
+            child.bind("<Button-5>", on_mouse_scroll, add="+")
 
     def handle_install(self):
         if self.current_pkg:
