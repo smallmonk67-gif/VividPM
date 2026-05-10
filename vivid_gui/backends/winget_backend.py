@@ -24,7 +24,8 @@ def get_installed():
         # We use --accept-source-agreements to bypass.
         res = subprocess.run(
             ["winget", "list", "--accept-source-agreements"],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace", 
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode != 0:
             return []
@@ -43,7 +44,7 @@ def get_installed():
 
         for line in lines[2:]:
             if len(line) < id_start: continue
-            
+            if line.strip().replace("-", "").replace(" ", "") == "": continue
             name = line[:id_start].strip()
             pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
             version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
@@ -72,7 +73,8 @@ def search(query: str):
     try:
         res = subprocess.run(
             ["winget", "search", query, "--accept-source-agreements"],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode != 0:
             return []
@@ -90,7 +92,7 @@ def search(query: str):
 
         for line in lines[2:]:
             if len(line) < id_start: continue
-            
+            if line.strip().replace("-", "").replace(" ", "") == "": continue
             name = line[:id_start].strip()
             pkg_id = line[id_start:ver_start].strip() if len(line) > ver_start else line[id_start:].strip()
             version = line[ver_start:].split()[0] if len(line) > ver_start and line[ver_start:].strip() else ""
@@ -118,7 +120,8 @@ def get_info(pkg_id):
     try:
         res = subprocess.run(
             ["winget", "show", "--id", pkg_id, "--accept-source-agreements"],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode == 0:
             info = {}

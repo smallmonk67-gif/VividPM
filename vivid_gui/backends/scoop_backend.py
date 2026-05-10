@@ -15,7 +15,8 @@ def get_installed():
     try:
         res = subprocess.run(
             ["scoop", "list"],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode != 0:
             return []
@@ -54,7 +55,8 @@ def search(query: str):
     try:
         res = subprocess.run(
             ["scoop", "search", query],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode != 0:
             return []
@@ -95,7 +97,8 @@ def get_info(pkg_id):
     try:
         res = subprocess.run(
             ["scoop", "info", pkg_id],
-            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if res.returncode == 0:
             info = {}
