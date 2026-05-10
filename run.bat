@@ -6,13 +6,15 @@ cd /d %DIR%
 
 echo Starting Vivid Package Manager...
 
-if exist ".venv\Scripts\python.exe" (
-    echo Using virtual environment...
-    ".venv\Scripts\python.exe" launcher.py
+if exist ".venv\Scripts\pythonw.exe" (
+    start "" ".venv\Scripts\pythonw.exe" launcher.py
+) else if exist ".venv\Scripts\python.exe" (
+    start "" ".venv\Scripts\python.exe" launcher.py
 ) else (
-    echo Using system python...
-    python launcher.py
+    start "" pythonw launcher.py || python launcher.py
 )
+
+exit /b 0
 
 if %ERRORLEVEL% neq 0 (
     echo.

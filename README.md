@@ -10,7 +10,7 @@
 ## 🚀 Key Features
 - **🎨 Vibrant Aesthetics**: A state-of-the-art UI with dynamic hero banners, smooth animations, and high-quality iconography.
 - **🌍 Multi-Platform**: Native support for Linux distributions and Windows.
-- **📱 Smart Detection**: Automatically detects your OS family and active package managers, hiding incompatible options to keep the UI clean.
+- **📱 Smart Detection & Auto-Install**: Automatically detects your OS and active package managers. If optional tools like Scoop or Chocolatey are missing on Windows, VividPM can install them for you with a single click.
 - **🔍 Real-time Search**: Multi-threaded parallel search across all active backends with a smooth loading experience.
 - **📂 Native Integration**: Launches your system's native file explorer and terminal for all operations.
 
@@ -18,7 +18,7 @@
 
 ## 📦 Supported Package Managers
 
-VividPM automatically detects which tools are installed on your system.
+VividPM automatically detects which tools are installed on your system and will prompt you to install missing optional backends (like Flatpak on Linux or Scoop on Windows).
 
 ### 🐧 Linux Backends
 | Backend | OS / Distribution | How to Install |
@@ -31,15 +31,15 @@ VividPM automatically detects which tools are installed on your system.
 | **Portage** | Gentoo | Pre-installed. |
 | **XBPS** | Void Linux | Pre-installed. |
 | **APK** | Alpine Linux | Pre-installed. |
-| **Flatpak** | Universal Linux | `sudo pacman -S flatpak` (Arch) or `sudo apt install flatpak` (Ubuntu). |
-| **Snap** | Universal Linux | `sudo pacman -S snapd` (Arch) or `sudo apt install snapd` (Ubuntu). |
+| **Flatpak** | Universal Linux | **Auto-Install Prompt** in VividPM. |
+| **Snap** | Universal Linux | **Auto-Install Prompt** in VividPM. |
 
 ### 🪟 Windows Backends
 | Backend | How to Install |
 | :--- | :--- |
 | **Winget** | Pre-installed on Windows 10/11 (App Installer). |
-| **Chocolatey** | Run PowerShell as Admin: `Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))` |
-| **Scoop** | Run PowerShell: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression` |
+| **Chocolatey** | **Auto-Install Prompt** in VividPM (Requires Admin). |
+| **Scoop** | **Auto-Install Prompt** in VividPM. |
 
 ### 🐍 Cross-Platform
 | Backend | How to Install |

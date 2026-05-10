@@ -103,6 +103,7 @@ class App(ctk.CTk):
 
         # Check for missing optional backends after the UI is ready
         self.after(800, self._check_missing_backends)
+        self.after(1500, self._check_pythonw)
 
     # ── Homepage ──────────────────────────────────────────────────
     def load_homepage(self):
@@ -218,6 +219,31 @@ class App(ctk.CTk):
             self.load_homepage()
 
 
+    def _check_pythonw(self):
+        """Check if pythonw is being used on Windows and warn if missing."""
+        import platform
+        if platform.system() != "Windows":
+            return
+        
+        import sys
+        # If the current executable is not pythonw, check if it exists
+        if not sys.executable.lower().endswith("pythonw.exe"):
+            pythonw_path = sys.executable.lower().replace("python.exe", "pythonw.exe")
+            if not os.path.exists(pythonw_path):
+                # Use a flag file to only show this once
+                flag_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pythonw_notified")
+                if not os.path.exists(flag_path):
+                    try:
+                        with open(flag_path, "w") as f: f.write("1")
+                    except: pass
+                    
+                    utils.show_error(
+                        "Optimizer Tip",
+                        "We noticed you're running without 'pythonw.exe'.\n\n"
+                        "This causes a terminal window to stay open in the background. "
+                        "For a cleaner experience, please ensure Python is installed with the 'tcl/tk' and 'IDLE' options enabled."
+                    )
+
     def _check_missing_backends(self):
         """Show a dialog if optional package managers are not installed."""
         missing = installer.get_missing_backends()
@@ -258,11 +284,12 @@ class App(ctk.CTk):
                 left, text=info["description"], text_color="gray", anchor="w", font=ctk.CTkFont(size=11)
             ).pack(anchor="w")
 
-            ctk.CTkButton(
+            btn = ctk.CTkButton(
                 row, text="Install", width=80,
-                fg_color="green", hover_color="darkgreen",
-                command=lambda b=bid, d=dialog: self._install_backend(b, d)
-            ).pack(side="right", padx=12, pady=8)
+                fg_color="green", hover_color="darkgreen"
+            )
+            btn.configure(command=lambda b=bid, d=dialog, button=btn: self._install_backend(b, d, button))
+            btn.pack(side="right", padx=12, pady=8)
 
         ctk.CTkButton(
             dialog, text="Skip", fg_color="transparent",
@@ -270,9 +297,9 @@ class App(ctk.CTk):
             command=dialog.destroy
         ).pack(pady=(12, 20))
 
-    def _install_backend(self, backend_id, dialog):
-        """Start installing a backend and reload after completion."""
-        dialog.destroy()
+    def _install_backend(self, backend_id, dialog, button):
+        """Start installing a backend and update UI."""
+        button.configure(state="disabled", text="Installing...", fg_color="gray")
 
         info = installer.INSTALLABLE_BACKENDS[backend_id]
         self.status_label.configure(text=f"Installing {info['display_name']}...")
@@ -281,12 +308,13 @@ class App(ctk.CTk):
             # Reload backend list and refresh the UI
             pkg_manager.reload_backends()
             new_backends = pkg_manager.get_available_backends()
-            self.after(0, self._on_backend_installed, new_backends)
+            self.after(0, self._on_backend_installed, new_backends, button)
 
         installer.install_backend(backend_id, on_finish=on_done)
 
-    def _on_backend_installed(self, new_backends):
-        """Rebuild the filter bar and refresh the homepage after a new backend is installed."""
+    def _on_backend_installed(self, new_backends, button):
+        """Rebuild the filter bar and update the button state."""
+        button.configure(text="Installed", fg_color="#1a73e8")
         self._backends = new_backends
         # Rebuild filter bar
         self.filter_bar.destroy()

@@ -7,15 +7,22 @@ Set-Location $PSScriptRoot
 Write-Host "Starting Vivid Package Manager..." -ForegroundColor Cyan
 
 # Check for local virtual environment
+$VENV_BIN_W = Join-Path $PSScriptRoot ".venv\Scripts\pythonw.exe"
 $VENV_BIN = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 
-if (Test-Path $VENV_BIN) {
-    Write-Host "Using virtual environment: $VENV_BIN" -ForegroundColor Gray
-    & $VENV_BIN launcher.py
+if (Test-Path $VENV_BIN_W) {
+    Start-Process $VENV_BIN_W -ArgumentList "launcher.py" -WindowStyle Hidden
+} elseif (Test-Path $VENV_BIN) {
+    Start-Process $VENV_BIN -ArgumentList "launcher.py" -WindowStyle Hidden
 } else {
-    Write-Host "Using system python" -ForegroundColor Gray
-    python launcher.py
+    try {
+        Start-Process "pythonw" -ArgumentList "launcher.py" -WindowStyle Hidden -ErrorAction Stop
+    } catch {
+        Start-Process "python" -ArgumentList "launcher.py" -WindowStyle Hidden
+    }
 }
+
+exit 0
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "`nError: Application failed to start." -ForegroundColor Red

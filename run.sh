@@ -7,10 +7,14 @@ cd "$DIR"
 
 # Priority: Use the local virtual environment if it exists
 if [ -f ".venv/bin/python" ]; then
-    echo "[Launcher] Using local virtual environment..."
-    ./.venv/bin/python launcher.py "$@"
+    ./.venv/bin/python launcher.py "$@" > /dev/null 2>&1 & disown
 else
     # Fallback to system python
-    echo "[Launcher] Local venv not found, trying system python..."
-    python3 launcher.py "$@"
+    python3 launcher.py "$@" > /dev/null 2>&1 & disown
 fi
+
+clear
+echo "[Launcher] Vivid Package Manager is starting in the background..."
+echo "[Launcher] You can safely close this terminal."
+sleep 1
+exit 0
