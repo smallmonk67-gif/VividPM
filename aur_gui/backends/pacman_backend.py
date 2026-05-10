@@ -52,34 +52,79 @@ def get_installed_package_names():
 
 
 def search(query: str):
-    """Search AUR for packages matching query."""
+    """Search official repos and AUR for packages matching query."""
+    out = []
+    installed = get_installed_package_names()
+    
+    # 1. Search Official Repos (pacman -Ss)
+    try:
+        res = subprocess.run(["pacman", "-Ss", query], capture_output=True, text=True)
+        if res.returncode == 0:
+            lines = res.stdout.strip().split("\n")
+            # pacman -Ss output comes in pairs: "repo/name version [installed]" followed by "desc"
+            for i in range(0, len(lines), 2):
+                header = lines[i]
+                desc = lines[i+1] if i+1 < len(lines) else ""
+                
+                # Parse "extra/firefox 125.0.3-1 [installed]"
+                parts = header.split()
+                if not parts: continue
+                
+                repo_name = parts[0] # "extra/firefox"
+                repo, _, name = repo_name.partition("/")
+                if not name: # sometimes just "name"
+                    name = repo
+                
+                version = parts[1] if len(parts) > 1 else ""
+                is_installed = "[installed]" in header or name in installed
+                
+                out.append({
+                    "Name": name,
+                    "ID": name,
+                    "Version": version,
+                    "Description": desc.strip(),
+                    "is_installed": is_installed,
+                    "is_app": False,
+                    "Exec": "",
+                    "backend": BACKEND_ID,
+                    "PackageName": name,
+                    "Repository": repo,
+                })
+    except Exception as e:
+        print(f"[pacman] repo search error: {e}")
+
+    # 2. Search AUR (RPC)
     try:
         url = f"{AUR_RPC_BASE_URL}/search/{urllib.parse.quote(query)}"
         with urllib.request.urlopen(url, timeout=8) as response:
             data = json.loads(response.read().decode("utf-8"))
             results = data.get("results", [])
             results.sort(key=lambda x: -x.get("Popularity", 0))
-            installed = get_installed_package_names()
-            out = []
+            
+            seen_names = {pkg["Name"] for pkg in out}
             for r in results:
+                name = r.get("Name", "")
+                if name in seen_names: continue # Avoid duplicates if in both
+                
                 out.append({
-                    "Name": r.get("Name", ""),
-                    "ID": r.get("Name", ""),
+                    "Name": name,
+                    "ID": name,
                     "Version": r.get("Version", ""),
                     "Description": r.get("Description", ""),
-                    "is_installed": r.get("Name") in installed,
+                    "is_installed": name in installed,
                     "is_app": False,
                     "Exec": "",
                     "backend": BACKEND_ID,
-                    "PackageName": r.get("Name", ""),
+                    "PackageName": name,
                     "NumVotes": r.get("NumVotes", 0),
                     "Maintainer": r.get("Maintainer", "Orphan"),
                     "LastModified": r.get("LastModified"),
+                    "Repository": "aur",
                 })
-            return out
     except Exception as e:
-        print(f"[pacman] search error: {e}")
-        return []
+        print(f"[pacman] aur search error: {e}")
+        
+    return out
 
 
 def get_installed():

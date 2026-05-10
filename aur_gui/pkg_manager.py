@@ -190,7 +190,10 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
     def worker():
         # Build command based on backend
         if backend_id == "pacman":
-            cmd = ["yay", "-S", pkg_id]
+            helper = "yay" if shutil.which("yay") else "paru" if shutil.which("paru") else "pacman"
+            # If we are using pacman but trying to install from AUR, it will fail.
+            # We can detect this if 'aur' is in the pkg data (though we don't always have it here)
+            cmd = [helper, "-S", "--needed", pkg_id]
         elif backend_id == "flatpak":
             cmd = ["flatpak", "install", "flathub", pkg_id]
         elif backend_id == "snap":
@@ -213,7 +216,6 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
         # Wrap command in terminal spawn logic
         if platform.system() == "Windows":
             # On Windows, 'start cmd /k' opens a new terminal window that stays open
-            # We use subprocess.call with shell=True to execute the 'start' command
             full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
             try:
                 subprocess.Popen(full_cmd, shell=True)
@@ -226,7 +228,10 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
                 utils.show_error("Installation Failed", f"Could not start installation process:\n{e}")
                 return
         else:
-            full_cmd = [terminal, "-e"] + cmd
+            # On Linux, wrap in bash to ensure we can pause on failure
+            cmd_str = " ".join(cmd)
+            bash_cmd = f"{cmd_str} || (echo; echo 'Process failed. Press Enter to close...'; read)"
+            full_cmd = [terminal, "-e", "bash", "-c", bash_cmd]
 
         try:
             proc = subprocess.Popen(full_cmd)
@@ -283,7 +288,10 @@ def remove_package(pkg, terminal="alacritty", on_finish=None):
                 utils.show_error("Removal Failed", f"Could not start removal process:\n{e}")
                 return
         else:
-            full_cmd = [terminal, "-e"] + cmd
+            # On Linux, wrap in bash to ensure we can pause on failure
+            cmd_str = " ".join(cmd)
+            bash_cmd = f"{cmd_str} || (echo; echo 'Process failed. Press Enter to close...'; read)"
+            full_cmd = [terminal, "-e", "bash", "-c", bash_cmd]
 
         try:
             proc = subprocess.Popen(full_cmd)
