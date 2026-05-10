@@ -193,12 +193,14 @@ class PackageListFrame(ctk.CTkScrollableFrame):
 
     # ── Data methods ─────────────────────────────────────────────
     def populate(self, packages):
-        self._all_packages = packages
         self.clear()
+        self._all_packages = []
         self.add_packages(packages)
 
-    def add_packages(self, packages):
-        """Append new packages to the list without clearing existing ones."""
+    def add_packages(self, packages, from_filter=False):
+        """Append new packages to the list and update the master list."""
+        if not from_filter:
+            self._all_packages.extend(packages)
         # Temporarily unpack spinner so new items go before it
         if self._spinner_job is not None:
             self._spinner_frame.pack_forget()
@@ -244,7 +246,8 @@ class PackageListFrame(ctk.CTkScrollableFrame):
     def apply_filter(self, active_backends):
         self._active_backends = active_backends
         self.clear()
-        self.add_packages(self._all_packages)
+        # Re-render from the master list without adding duplicates to it
+        self.add_packages(self._all_packages, from_filter=True)
 
     def clear(self):
         for item in self.item_frames:
