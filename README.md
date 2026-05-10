@@ -48,31 +48,35 @@ VividPM automatically detects which tools are installed on your system and will 
 
 ---
 
-## 🛠️ Installation Guide
+## 🛠️ Getting Started
 
-VividPM is designed to be lightweight and portable. Follow these steps to get it running on your system.
+### Option A: Portable / Manual Download (No Git)
+1. **Download** the project as a ZIP from the **[Releases Page](https://github.com/smallmonk67-gif/VividPM/releases)**.
+2. **Unzip** the folder anywhere on your computer.
+3. **Install Dependencies** (only needed once):
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Run** `run.sh` (Linux) or `run.bat` (Windows).
 
-### 1. Clone the Repository
+### Option B: Clone via Git
 ```bash
 git clone https://github.com/smallmonk67-gif/VividPM.git
 cd VividPM
+pip install -r requirements.txt
 ```
 
-### 2. Set Up the Environment
-We recommend using a virtual environment to keep your system clean.
+### 🐍 Recommended: Virtual Environment Setup
+To keep your system clean, use a virtual environment:
 
-**On Linux/macOS:**
+**Linux/macOS:**
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 ```
 
-**On Windows:**
+**Windows:**
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv .venv; .\.venv\Scripts\activate; pip install -r requirements.txt
 ```
 
 ### 3. Launching VividPM
