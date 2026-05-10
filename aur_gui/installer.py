@@ -29,6 +29,10 @@ INSTALLABLE_BACKENDS = {
 
 def get_missing_backends():
     """Return a list of backend IDs that are installable but not currently available."""
+    import platform
+    if platform.system() == "Windows":
+        return []  # We don't support auto-installing Linux backends on Windows yet
+        
     missing = []
     for backend_id, info in INSTALLABLE_BACKENDS.items():
         if shutil.which(info["binary"]) is None:

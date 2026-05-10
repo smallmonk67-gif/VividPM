@@ -6,6 +6,7 @@ Package install/remove is now handled by pkg_manager.py.
 import subprocess
 import threading
 import time
+from aur_gui import utils
 
 TERMINAL = "alacritty"
 AUR_HELPER = "yay"
@@ -31,6 +32,7 @@ def _run_in_terminal(cmd, on_finish=None, cwd=None):
                     on_finish()
         except Exception as e:
             print(f"[action_runner] error: {e}")
+            utils.show_error("Execution Error", f"Failed to run command:\n{e}")
 
     threading.Thread(target=worker, daemon=True).start()
 
@@ -69,6 +71,7 @@ def update_system(on_finish=None):
                     proc.wait()
             except Exception as e:
                 print(f"[action_runner] update error: {e}")
+                utils.show_error("Update Error", f"Failed to update system:\n{e}")
         time.sleep(0.5)
         if on_finish:
             on_finish()
@@ -119,8 +122,16 @@ def build_local_package(file_path, on_finish=None):
 def run_app(exec_cmd):
     """Launch a desktop application in the background."""
     import shlex
+    import platform
+    import os
     try:
-        cmd = shlex.split(exec_cmd)
-        subprocess.Popen(cmd, start_new_session=True)
+        if platform.system() == "Windows":
+            # On Windows, we can use 'start' to launch by name or path
+            # shell=True is needed for the 'start' command
+            subprocess.Popen(f'start "" "{exec_cmd}"', shell=True)
+        else:
+            cmd = shlex.split(exec_cmd)
+            subprocess.Popen(cmd, start_new_session=True)
     except Exception as e:
         print(f"[action_runner] run_app error: {e}")
+        utils.show_error("Launch Error", f"Failed to launch application:\n{e}")

@@ -66,3 +66,8 @@ def get_native_file_picker(title="Select File"):
         ]
     )
 
+
+def show_error(title, message):
+    """Display a standard error popup."""
+    from tkinter import messagebox
+    messagebox.showerror(title, message)

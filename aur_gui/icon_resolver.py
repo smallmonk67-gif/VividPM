@@ -8,22 +8,26 @@ import customtkinter as ctk
 
 ICON_CACHE = {}
 
-# Common Linux icon search paths
-SEARCH_PATHS = [
-    os.path.expanduser("~/.local/share/icons"),
-    "/usr/share/icons/hicolor/48x48/apps",
-    "/usr/share/icons/hicolor/scalable/apps",
-    "/usr/share/icons/hicolor/64x64/apps",
-    "/usr/share/pixmaps",
-    # Flatpak system and user paths
-    "/var/lib/flatpak/exports/share/icons/hicolor/48x48/apps",
-    "/var/lib/flatpak/exports/share/icons/hicolor/64x64/apps",
-    "/var/lib/flatpak/exports/share/icons/hicolor/scalable/apps",
-    os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor/48x48/apps"),
-    os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor/64x64/apps"),
-    # Snap paths
-    "/var/lib/snapd/desktop/icons",
-]
+import platform
+# Common Linux icon search paths - Empty on Windows to avoid performance hits
+if platform.system() == "Windows":
+    SEARCH_PATHS = []
+else:
+    SEARCH_PATHS = [
+        os.path.expanduser("~/.local/share/icons"),
+        "/usr/share/icons/hicolor/48x48/apps",
+        "/usr/share/icons/hicolor/scalable/apps",
+        "/usr/share/icons/hicolor/64x64/apps",
+        "/usr/share/pixmaps",
+        # Flatpak system and user paths
+        "/var/lib/flatpak/exports/share/icons/hicolor/48x48/apps",
+        "/var/lib/flatpak/exports/share/icons/hicolor/64x64/apps",
+        "/var/lib/flatpak/exports/share/icons/hicolor/scalable/apps",
+        os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor/48x48/apps"),
+        os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor/64x64/apps"),
+        # Snap paths
+        "/var/lib/snapd/desktop/icons",
+    ]
 
 def resolve_icon_path(icon_name):
     """Try to find the absolute path for an icon name."""

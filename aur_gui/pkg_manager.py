@@ -12,6 +12,7 @@ from aur_gui.backends import (
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
 )
+from aur_gui import utils
 
 # Ordered list of all supported backends
 _ALL_BACKENDS = [
@@ -131,6 +132,7 @@ def search_all(query: str, callback):
             callback(results, backend.BACKEND_ID)
         except Exception as e:
             print(f"[pkg_manager] search error in {backend.BACKEND_ID}: {e}")
+            utils.show_error("Search Error", f"Backend {backend.DISPLAY_NAME} failed:\n{e}")
             callback([], backend.BACKEND_ID)
 
     for backend in backends:
@@ -147,6 +149,7 @@ def async_get_installed(callback):
             callback(results, backend.BACKEND_ID)
         except Exception as e:
             print(f"[pkg_manager] get_installed error in {backend.BACKEND_ID}: {e}")
+            utils.show_error("Load Error", f"Failed to fetch installed apps from {backend.DISPLAY_NAME}:\n{e}")
             callback([], backend.BACKEND_ID)
 
     for backend in backends:
@@ -220,6 +223,7 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
                 return
             except Exception as e:
                 print(f"[pkg_manager] install error: {e}")
+                utils.show_error("Installation Failed", f"Could not start installation process:\n{e}")
                 return
         else:
             full_cmd = [terminal, "-e"] + cmd
@@ -276,6 +280,7 @@ def remove_package(pkg, terminal="alacritty", on_finish=None):
                 return
             except Exception as e:
                 print(f"[pkg_manager] remove error: {e}")
+                utils.show_error("Removal Failed", f"Could not start removal process:\n{e}")
                 return
         else:
             full_cmd = [terminal, "-e"] + cmd

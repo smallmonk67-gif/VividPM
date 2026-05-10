@@ -527,7 +527,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
             self.install_btn.pack(side="left", padx=(0, 8))
             self.remove_btn.pack_forget()
 
-        if pkg.get("is_installed") and pkg.get("is_app") and pkg.get("Exec"):
+        if pkg.get("is_installed") and pkg.get("is_app"):
             self.run_btn.pack(side="left")
         else:
             self.run_btn.pack_forget()
@@ -573,8 +573,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         if self.current_pkg:
             self.on_remove(self.current_pkg)
 
-    def handle_run(self):
         if self.current_pkg and self.on_run:
-            exec_cmd = self.current_pkg.get("Exec", "")
+            exec_cmd = self.current_pkg.get("Exec") or self.current_pkg.get("Name", "")
             if exec_cmd:
                 self.on_run(exec_cmd)

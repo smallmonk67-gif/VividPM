@@ -8,11 +8,17 @@ BACKEND_ID = "winget"
 DISPLAY_NAME = "Winget"
 COLOR = "#00a4ef"  # Windows blue
 
+_INSTALLED_CACHE = None
+
 def is_available():
     return shutil.which("winget") is not None
 
 def get_installed():
     """Return installed packages via winget."""
+    global _INSTALLED_CACHE
+    if _INSTALLED_CACHE is not None:
+        return _INSTALLED_CACHE
+        
     try:
         # Note: winget list is often very slow and prompts for source agreements.
         # We use --accept-source-agreements to bypass.
@@ -50,6 +56,7 @@ def get_installed():
                     "backend": BACKEND_ID,
                     "PackageName": pkg_id,
                 })
+        _INSTALLED_CACHE = apps
         return apps
     except Exception as e:
         print(f"[winget] get_installed error: {e}")
