@@ -13,6 +13,7 @@ INSTALLABLE_BACKENDS = {
         "install_cmd": ["sudo", "pacman", "-S", "--noconfirm", "flatpak"],
         "post_install": [],  # No extra steps needed for flatpak
         "description": "Universal Linux app sandboxing platform (Flathub)",
+        "os": "Linux",
     },
     "snap": {
         "display_name": "Snap",
@@ -23,6 +24,24 @@ INSTALLABLE_BACKENDS = {
             ["sudo", "ln", "-sf", "/var/lib/snapd/snap", "/snap"],
         ],
         "description": "Snap package manager by Canonical",
+        "os": "Linux",
+    },
+    "scoop": {
+        "display_name": "Scoop",
+        "binary": "scoop",
+        "install_cmd": ["powershell", "-NoExit", "-ExecutionPolicy", "RemoteSigned", "-Command", "Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression"],
+        "post_install": [],
+        "description": "A command-line installer for Windows (User-level)",
+        "os": "Windows",
+    },
+    "choco": {
+        "display_name": "Chocolatey",
+        "binary": "choco",
+        # Chocolatey requires administrator privileges. This command requests elevation.
+        "install_cmd": ["powershell", "-NoProfile", "-Command", "Start-Process powershell -Wait -Verb RunAs -ArgumentList '-NoExit', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'iex ((New-Object System.Net.WebClient).DownloadString(''https://community.chocolatey.org/install.ps1''))'"],
+        "post_install": [],
+        "description": "The Package Manager for Windows (Requires Admin)",
+        "os": "Windows",
     },
 }
 
@@ -30,11 +49,11 @@ INSTALLABLE_BACKENDS = {
 def get_missing_backends():
     """Return a list of backend IDs that are installable but not currently available."""
     import platform
-    if platform.system() == "Windows":
-        return []  # We don't support auto-installing Linux backends on Windows yet
-        
+    system_os = platform.system()
     missing = []
     for backend_id, info in INSTALLABLE_BACKENDS.items():
+        if info.get("os", "Linux") != system_os:
+            continue
         if shutil.which(info["binary"]) is None:
             missing.append(backend_id)
     return missing
@@ -54,8 +73,15 @@ def install_backend(backend_id, terminal="alacritty", on_finish=None):
 
     def worker():
         try:
+            import platform
             # Main install command
-            proc = subprocess.Popen([terminal, "-e"] + info["install_cmd"])
+            if platform.system() == "Windows":
+                proc = subprocess.Popen(
+                    info["install_cmd"], 
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            else:
+                proc = subprocess.Popen([terminal, "-e"] + info["install_cmd"])
             proc.wait()
 
             # Post-install steps (run silently in background, no terminal needed)
