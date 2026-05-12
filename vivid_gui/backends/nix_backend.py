@@ -4,11 +4,14 @@ nix_backend.py — Backend for Nix package manager (macOS and Linux).
 import subprocess
 import shutil
 
+import os
+
 BACKEND_ID = "nix"
 DISPLAY_NAME = "Nix"
 
 def is_available():
-    return shutil.which("nix-env") is not None
+    if shutil.which("nix-env"): return True
+    return os.path.exists(os.path.expanduser("~/.nix-profile/bin/nix-env")) or os.path.exists("/nix/var/nix/profiles/default/bin/nix-env")
 
 def get_installed():
     try:

@@ -305,21 +305,35 @@ class App(ctk.CTk):
         self.status_label.configure(text=f"Installing {info['display_name']}...")
 
         def on_done():
-            # Reload backend list and refresh the UI
-            pkg_manager.reload_backends()
-            new_backends = pkg_manager.get_available_backends()
-            self.after(0, self._on_backend_installed, new_backends, button)
+            # Trigger UI update on the main thread
+            self.after(0, self._on_backend_installed, backend_id, button)
 
         installer.install_backend(backend_id, on_finish=on_done)
 
-    def _on_backend_installed(self, new_backends, button):
-        """Rebuild the filter bar and update the button state."""
-        button.configure(text="Installed", fg_color="#1a73e8")
+    def _on_backend_installed(self, backend_id, button):
+        """Rebuild the filter bar and update the button state. Runs on main thread."""
+        pkg_manager.reload_backends()
+        new_backends = pkg_manager.get_available_backends()
+        
         self._backends = new_backends
-        # Rebuild filter bar
-        self.filter_bar.destroy()
+        
+        # Check if backend was actually installed (binary found)
+        is_installed = any(b.BACKEND_ID == backend_id for b in new_backends)
+        
+        if button.winfo_exists():
+            if is_installed:
+                button.configure(text="Installed", fg_color="gray", state="disabled")
+            else:
+                button.configure(text="Retry", fg_color="red", state="normal")
+        
+        # Rebuild filter bar to include the new backend
+        if hasattr(self, "filter_bar") and self.filter_bar.winfo_exists():
+            self.filter_bar.destroy()
+            
         self.filter_bar = BackendFilterBar(self, self._backends, self.handle_filter_change)
         self.filter_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(4, 0))
+        
+        # Refresh the package list
         self.load_homepage()
 
 

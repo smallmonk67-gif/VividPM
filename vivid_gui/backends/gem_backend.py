@@ -8,7 +8,9 @@ BACKEND_ID = "gem"
 DISPLAY_NAME = "RubyGems"
 
 def is_available():
-    return shutil.which("gem") is not None
+    if shutil.which("gem"): return True
+    import os
+    return os.path.exists("/usr/local/bin/gem") or os.path.exists("/usr/bin/gem") or os.path.exists("/opt/homebrew/bin/gem")
 
 def get_installed():
     try:

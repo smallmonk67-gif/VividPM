@@ -4,11 +4,14 @@ macports_backend.py — Backend for MacPorts (macOS).
 import subprocess
 import shutil
 
+import os
+
 BACKEND_ID = "macports"
 DISPLAY_NAME = "MacPorts"
 
 def is_available():
-    return shutil.which("port") is not None
+    if shutil.which("port"): return True
+    return os.path.exists("/opt/local/bin/port")
 
 def get_installed():
     try:

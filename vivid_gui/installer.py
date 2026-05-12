@@ -45,7 +45,7 @@ INSTALLABLE_BACKENDS = {
     "brew": {
         "display_name": "Homebrew",
         "binary": "brew",
-        "install_cmd": ["bash", "-c", "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"],
+        "install_cmd": ["bash", "-c", 'bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
         "post_install": [],
         "description": "The Missing Package Manager for macOS (and Linux)",
         "os": ["Darwin", "Linux"],
@@ -61,7 +61,7 @@ INSTALLABLE_BACKENDS = {
     "nix": {
         "display_name": "Nix",
         "binary": "nix-env",
-        "install_cmd": ["sh", "-c", "curl -L https://nixos.org/nix/install | sh"],
+        "install_cmd": ["sh", "-c", "curl -L https://nixos.org/nix/install | sh -s -- --daemon"],
         "post_install": [],
         "description": "Powerful package manager for Linux and macOS",
         "os": ["Darwin", "Linux"],
@@ -77,7 +77,7 @@ INSTALLABLE_BACKENDS = {
     "npm": {
         "display_name": "npm (Node.js)",
         "binary": "npm",
-        "install_cmd": ["open", "https://nodejs.org/en/download/"] if __import__("platform").system() == "Darwin" else ["echo", "Please install Node.js manually."],
+        "install_cmd": ["open", "https://nodejs.org/en/download/"] if __import__("platform").system() == "Darwin" else ["sudo", "pacman", "-S", "--noconfirm", "npm"],
         "post_install": [],
         "description": "Node.js Package Manager",
         "os": "Universal",
@@ -85,7 +85,7 @@ INSTALLABLE_BACKENDS = {
     "cargo": {
         "display_name": "Cargo (Rust)",
         "binary": "cargo",
-        "install_cmd": ["sh", "-c", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"],
+        "install_cmd": ["sh", "-c", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"] if __import__("platform").system() == "Darwin" else ["sudo", "pacman", "-S", "--noconfirm", "rust"],
         "post_install": [],
         "description": "Rust Package Manager",
         "os": "Universal",
@@ -93,7 +93,7 @@ INSTALLABLE_BACKENDS = {
     "gem": {
         "display_name": "RubyGems",
         "binary": "gem",
-        "install_cmd": ["open", "https://www.ruby-lang.org/en/downloads/"] if __import__("platform").system() == "Darwin" else ["echo", "Please install Ruby manually."],
+        "install_cmd": ["open", "https://www.ruby-lang.org/en/downloads/"] if __import__("platform").system() == "Darwin" else ["sudo", "pacman", "-S", "--noconfirm", "ruby"],
         "post_install": [],
         "description": "Ruby Package Manager",
         "os": "Universal",
@@ -135,13 +135,59 @@ def install_backend(backend_id, terminal="alacritty", on_finish=None):
         try:
             import platform
             # Main install command
+            cmd = info["install_cmd"]
+            is_gui_or_echo = cmd[0] in ["open", "xdg-open", "echo"]
+            
             if platform.system() == "Windows":
-                proc = subprocess.Popen(
-                    info["install_cmd"], 
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                )
+                if is_gui_or_echo:
+                    proc = subprocess.Popen(cmd, shell=True)
+                else:
+                    proc = subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
             else:
-                proc = subprocess.Popen([terminal, "-e"] + info["install_cmd"])
+                if is_gui_or_echo:
+                    if cmd[0] == "open" and platform.system() == "Linux":
+                        cmd[0] = "xdg-open" # Translate open to xdg-open on Linux just in case
+                    proc = subprocess.Popen(cmd)
+                else:
+                    # For terminal-based installs, create a temp script to ensure robust execution and TTY
+                    import os
+                    import stat
+                    import shlex
+                    
+                    # Create a temporary script in the scratch directory
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    scratch_dir = os.path.join(os.path.dirname(current_dir), "scratch")
+                    if not os.path.exists(scratch_dir):
+                        os.makedirs(scratch_dir, exist_ok=True)
+                    
+                    script_path = os.path.join(scratch_dir, f"install_{backend_id}.sh")
+                    
+                    safe_cmd = shlex.join(cmd)
+                    script_content = f"#!/bin/bash\n"
+                    script_content += f"echo '--- VividPM Backend Installer ---'\n"
+                    script_content += f"echo 'Target: {info['display_name']}'\n"
+                    script_content += f"echo 'Command: {safe_cmd}'\n"
+                    script_content += f"echo '---------------------------------'\n\n"
+                    script_content += f"{safe_cmd}\n\n"
+                    script_content += f"if [ $? -eq 0 ]; then\n"
+                    script_content += f"    echo\n"
+                    script_content += f"    echo 'SUCCESS: {info['display_name']} installed successfully.'\n"
+                    script_content += f"    sleep 2\n"
+                    script_content += f"else\n"
+                    script_content += f"    echo\n"
+                    script_content += f"    echo 'ERROR: Installation failed with exit code $?'\n"
+                    script_content += f"    echo 'Press Enter to close this window...'\n"
+                    script_content += f"    read\n"
+                    script_content += f"fi\n"
+                    
+                    with open(script_path, "w") as f:
+                        f.write(script_content)
+                    
+                    os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IEXEC)
+                    
+                    # Run the script in the terminal
+                    proc = subprocess.Popen([terminal, "-e", script_path])
+            
             proc.wait()
 
             # Post-install steps (run silently in background, no terminal needed)

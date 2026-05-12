@@ -4,11 +4,14 @@ cargo_backend.py — Backend for Rust's Cargo package manager (Cross-platform).
 import subprocess
 import shutil
 
+import os
+
 BACKEND_ID = "cargo"
 DISPLAY_NAME = "Cargo"
 
 def is_available():
-    return shutil.which("cargo") is not None
+    if shutil.which("cargo"): return True
+    return os.path.exists(os.path.expanduser("~/.cargo/bin/cargo")) or os.path.exists("/usr/local/bin/cargo")
 
 def get_installed():
     try:

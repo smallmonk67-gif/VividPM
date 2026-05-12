@@ -30,6 +30,30 @@ _ALL_BACKENDS = [
 # Cache of currently active backends — call reload_backends() to refresh
 _active_backends = None
 _os_family = None  # Cached OS family string
+_backends_lock = threading.Lock()
+
+
+def refresh_path():
+    """Add common non-standard package manager paths to os.environ['PATH']."""
+    extra_paths = [
+        "/opt/homebrew/bin",
+        "/home/linuxbrew/.linuxbrew/bin",
+        os.path.expanduser("~/.cargo/bin"),
+        os.path.expanduser("~/.nix-profile/bin"),
+        "/nix/var/nix/profiles/default/bin",
+        "/usr/local/bin",
+        "/opt/local/bin", # MacPorts
+        "/sw/bin", # Fink
+    ]
+    current_path = os.environ.get("PATH", "").split(os.pathsep)
+    new_paths = []
+    for p in extra_paths:
+        if os.path.exists(p) and p not in current_path:
+            new_paths.append(p)
+    
+    if new_paths:
+        os.environ["PATH"] = os.pathsep.join(new_paths + current_path)
+        print(f"[pkg_manager] Updated PATH with: {new_paths}")
 
 
 def detect_os_family():
@@ -41,23 +65,24 @@ def detect_os_family():
     if _os_family is not None:
         return _os_family
 
-    if platform.system() == "Windows":
-        _os_family = {"windows"}
-        return _os_family
-    if platform.system() == "Darwin":
-        _os_family = {"macos", "darwin"}
-        return _os_family
-
     ids = set()
+    if platform.system() == "Linux":
+        ids.add("linux")
+    elif platform.system() == "Darwin":
+        ids.update(["macos", "darwin"])
+    elif platform.system() == "Windows":
+        ids.add("windows")
+
     try:
-        with open("/etc/os-release") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("ID=") or line.startswith("ID_LIKE="):
-                    _, _, val = line.partition("=")
-                    val = val.strip().strip('"').lower()
-                    # ID_LIKE can be space-separated
-                    ids.update(val.split())
+        if os.path.exists("/etc/os-release"):
+            with open("/etc/os-release") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("ID=") or line.startswith("ID_LIKE="):
+                        _, _, val = line.partition("=")
+                        val = val.strip().strip('"').lower()
+                        # ID_LIKE can be space-separated
+                        ids.update(val.split())
     except Exception:
         pass
 
@@ -107,22 +132,34 @@ def _is_os_compatible(backend):
 def reload_backends():
     """Re-detect which backends are available. Call after installing a new one."""
     global _active_backends
-    _active_backends = [
-        b for b in _ALL_BACKENDS
-        if _is_os_compatible(b) and b.is_available()
-    ]
+    refresh_path()
+    
+    with _backends_lock:
+        _active_backends = []
+        for b in _ALL_BACKENDS:
+            bid = getattr(b, "BACKEND_ID", "unknown")
+            if _is_os_compatible(b):
+                if b.is_available():
+                    _active_backends.append(b)
+                else:
+                    # Optional: print(f"[pkg_manager] {bid} not found (is_available=False)")
+                    pass
+            else:
+                # Optional: print(f"[pkg_manager] {bid} not compatible with this OS")
+                pass
+    
+    print(f"[pkg_manager] Active backends: {[getattr(b, 'BACKEND_ID', '') for b in _active_backends]}")
     return _active_backends
 
 
 def get_available_backends():
-    """Return list of backend modules that are available on this system."""
+    """Returns a list of backend modules that are available on this system."""
     global _active_backends
     if _active_backends is None:
-        _active_backends = [
-            b for b in _ALL_BACKENDS
-            if _is_os_compatible(b) and b.is_available()
-        ]
-    return _active_backends
+        reload_backends()
+    with _backends_lock:
+        # Return a copy to be thread-safe
+        return list(_active_backends)
 
 
 def get_installed_all():
@@ -205,12 +242,22 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
     backend = backend_map.get(backend_id, pacman_backend)
 
     def worker():
-        # Build command based on backend
         if backend_id == "pacman":
             helper = "yay" if shutil.which("yay") else "paru" if shutil.which("paru") else "pacman"
-            # If we are using pacman but trying to install from AUR, it will fail.
-            # We can detect this if 'aur' is in the pkg data (though we don't always have it here)
             cmd = [helper, "-S", "--needed", pkg_id]
+            if helper == "pacman": cmd = ["sudo"] + cmd
+        elif backend_id == "apt":
+            cmd = ["sudo", "apt", "install", "-y", pkg_id]
+        elif backend_id == "dnf":
+            cmd = ["sudo", "dnf", "install", "-y", pkg_id]
+        elif backend_id == "zypper":
+            cmd = ["sudo", "zypper", "install", "-y", pkg_id]
+        elif backend_id == "portage":
+            cmd = ["sudo", "emerge", pkg_id]
+        elif backend_id == "xbps":
+            cmd = ["sudo", "xbps-install", "-S", pkg_id]
+        elif backend_id == "apk":
+            cmd = ["sudo", "apk", "add", pkg_id]
         elif backend_id == "flatpak":
             cmd = ["flatpak", "install", "flathub", pkg_id]
         elif backend_id == "snap":
@@ -286,10 +333,21 @@ def remove_package(pkg, terminal="alacritty", on_finish=None):
 
     backend_id = pkg.get("backend", "pacman")
     pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
-
     def worker():
         if backend_id == "pacman":
             cmd = ["sudo", "pacman", "-Rns", pkg_id]
+        elif backend_id == "apt":
+            cmd = ["sudo", "apt", "remove", "-y", pkg_id]
+        elif backend_id == "dnf":
+            cmd = ["sudo", "dnf", "remove", "-y", pkg_id]
+        elif backend_id == "zypper":
+            cmd = ["sudo", "zypper", "remove", "-y", pkg_id]
+        elif backend_id == "portage":
+            cmd = ["sudo", "emerge", "--deselect", pkg_id]
+        elif backend_id == "xbps":
+            cmd = ["sudo", "xbps-remove", "-R", pkg_id]
+        elif backend_id == "apk":
+            cmd = ["sudo", "apk", "del", pkg_id]
         elif backend_id == "flatpak":
             cmd = ["flatpak", "uninstall", pkg_id]
         elif backend_id == "snap":

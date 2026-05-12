@@ -5,11 +5,14 @@ import subprocess
 import shutil
 import json
 
+import os
+
 BACKEND_ID = "npm"
 DISPLAY_NAME = "npm"
 
 def is_available():
-    return shutil.which("npm") is not None
+    if shutil.which("npm"): return True
+    return os.path.exists("/usr/local/bin/npm") or os.path.exists("/opt/homebrew/bin/npm") or os.path.exists("/home/linuxbrew/.linuxbrew/bin/npm")
 
 def get_installed():
     try:

@@ -4,11 +4,15 @@ brew_backend.py — Backend for Homebrew (macOS and Linux).
 import subprocess
 import shutil
 
+import os
+
 BACKEND_ID = "brew"
 DISPLAY_NAME = "Homebrew"
 
 def is_available():
-    return shutil.which("brew") is not None
+    if shutil.which("brew"): return True
+    # Common install paths
+    return os.path.exists("/opt/homebrew/bin/brew") or os.path.exists("/home/linuxbrew/.linuxbrew/bin/brew")
 
 def get_installed():
     try:
