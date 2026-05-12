@@ -12,14 +12,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
         include:
           - os: windows-latest
             artifact_name: VividPM_Windows_2.0.0.exe
             asset_name: VividPM_Windows_2.0.0.exe
           - os: macos-latest
             artifact_name: VividPM_macOS_2.0.0.app
-            asset_name: VividPM_macOS_2.0.0.zip # macOS apps are bundles, zip is better for uploading
+            asset_name: VividPM_macOS_2.0.0.zip
+          - os: ubuntu-latest
+            artifact_name: VividPM_Linux_2.0.0.AppImage
+            asset_name: VividPM_Linux_2.0.0.AppImage
 
     steps:
       - name: Checkout Code
@@ -66,6 +69,39 @@ jobs:
           name: VividPM-macOS
           path: dist/VividPM_macOS_2.0.0.zip
 
+      - name: Build Linux AppImage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pip install pyinstaller
+          pyinstaller --noconfirm --onedir --windowed --name "VividPM_Linux_2.0.0" --add-data "icon.png:." "launcher.py"
+          # Setup AppDir
+          mkdir AppDir
+          cp -r dist/VividPM_Linux_2.0.0/* AppDir/
+          cp icon.png AppDir/
+          # Create AppRun
+          echo '#!/bin/sh' > AppDir/AppRun
+          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> AppDir/AppRun
+          echo 'exec "${HERE}/VividPM_Linux_2.0.0" "$@"' >> AppDir/AppRun
+          chmod +x AppDir/AppRun
+          # Create Desktop file
+          echo '[Desktop Entry]' > AppDir/vividpm.desktop
+          echo 'Name=Vivid Package Manager' >> AppDir/vividpm.desktop
+          echo 'Exec=VividPM_Linux_2.0.0' >> AppDir/vividpm.desktop
+          echo 'Icon=icon' >> AppDir/vividpm.desktop
+          echo 'Type=Application' >> AppDir/vividpm.desktop
+          echo 'Categories=System;Utility;' >> AppDir/vividpm.desktop
+          # Build AppImage
+          curl -LO https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod a+x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir dist/VividPM_Linux_2.0.0.AppImage
+
+      - name: Upload Artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: VividPM-Linux
+          path: dist/VividPM_Linux_2.0.0.AppImage
+
       - name: Create Release and Upload Assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -73,6 +109,7 @@ jobs:
           files: |
             dist/VividPM_Windows_2.0.0.exe
             dist/VividPM_macOS_2.0.0.zip
+            dist/VividPM_Linux_2.0.0.AppImage
           name: VividPM v2.0.0 - Universal Edition
           draft: false
           prerelease: false
