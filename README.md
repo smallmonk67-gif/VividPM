@@ -59,42 +59,39 @@ VividPM automatically detects which tools are installed on your system and will 
 
 ## 🛠️ Getting Started
 
-### Option A: Portable / Manual Download (No Git)
-1. **Download** the project as a ZIP from the **[Releases Page](https://github.com/smallmonk67-gif/VividPM/releases)**.
-2. **Unzip** the folder anywhere on your computer.
-3. **Install Dependencies** (only needed once):
+### 🌟 Option 1: Universal Portable (Recommended)
+This is the easiest way to run VividPM. It is a single file that works on **Windows, macOS, and Linux**.
+
+1. **Download** `VividPM_Universal.pyw` from the **[latest release](https://github.com/smallmonk67-gif/VividPM/releases)**.
+2. **Double-click** to run.
+   - **Windows**: Opens natively (requires Python 3.10+ installed).
+   - **macOS**: Opens natively.
+   - **Linux**: Right-click -> **Properties** -> **Permissions** -> **Allow executing file as program**, then double-click.
+3. **Auto-Setup**: On the first run, the app will automatically detect and install its own dependencies (like `customtkinter`) in a safe virtual environment (`~/.vividpm_venv`).
+
+---
+
+### 🔧 Option 2: Developer / Manual Setup
+If you prefer to run from source code or contribute:
+
+1. **Clone the Repo**:
+   ```bash
+   git clone https://github.com/smallmonk67-gif/VividPM.git
+   cd VividPM
+   ```
+2. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-4. **Run** `run.sh` (Linux) or `run.bat` (Windows).
+3. **Run**:
+   - **Linux**: `./run.sh`
+   - **Windows**: `run.bat`
+   - **macOS**: `python3 launcher.py`
 
-### Option B: Clone via Git
-```bash
-git clone https://github.com/smallmonk67-gif/VividPM.git
-cd VividPM
-pip install -r requirements.txt
-```
+---
 
-### 🐍 Recommended: Virtual Environment Setup
-To keep your system clean, use a virtual environment:
-
-**Linux/macOS:**
-```bash
-python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-```
-
-**Windows:**
-```powershell
-python -m venv .venv; .\.venv\Scripts\activate; pip install -r requirements.txt
-```
-
-### 3. Launching VividPM
-
-#### 🐧 Linux
-Run `./run.sh` or use the **`vividpm.desktop`** file for a themed app-menu experience.
-
-#### 🪟 Windows
-Run `run.bat` or `run.ps1`. Tip: Create a desktop shortcut and use the included **`icon.ico`** for a native look.
+## 🐍 Smart Environment Management
+VividPM is designed to be "system-safe." If you use the **Universal Portable** version, it automatically manages a dedicated virtual environment for you, ensuring that your system Python remains clean and stable (compliant with PEP 668).
 
 ---
 
