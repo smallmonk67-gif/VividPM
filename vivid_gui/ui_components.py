@@ -20,6 +20,14 @@ BACKEND_COLORS = {
     "choco":   "#8b4513",  # SaddleBrown
     "scoop":   "#ff8c00",  # DarkOrange
     "windows_native": "#0078d4", # Windows Native blue
+    # macOS & Universal backends
+    "brew":    "#f2b144",  # Homebrew brown/orange
+    "macports":"#2a5078",  # MacPorts blue
+    "nix":     "#5277c3",  # Nix blue
+    "fink":    "#8b0000",  # Fink dark red
+    "npm":     "#cb3837",  # npm red
+    "cargo":   "#f46623",  # Rust cargo orange
+    "gem":     "#701516",  # Ruby gem dark red
 }
 
 BACKEND_LABELS = {
@@ -39,6 +47,14 @@ BACKEND_LABELS = {
     "choco":   "Choco",
     "scoop":   "Scoop",
     "windows_native": "Windows",
+    # macOS & Universal backends
+    "brew":    "Brew",
+    "macports":"MacPorts",
+    "nix":     "Nix",
+    "fink":    "Fink",
+    "npm":     "npm",
+    "cargo":   "Cargo",
+    "gem":     "Gem",
 }
 
 

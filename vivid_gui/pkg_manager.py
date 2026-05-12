@@ -12,6 +12,8 @@ from vivid_gui.backends import (
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
     windows_native_backend,
+    brew_backend, macports_backend, nix_backend, fink_backend,
+    npm_backend, cargo_backend, gem_backend,
 )
 from vivid_gui import utils
 
@@ -21,7 +23,9 @@ _ALL_BACKENDS = [
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
     windows_native_backend,
+    brew_backend, macports_backend, nix_backend, fink_backend,
     flatpak_backend, snap_backend, pip_backend,
+    npm_backend, cargo_backend, gem_backend,
 ]
 # Cache of currently active backends — call reload_backends() to refresh
 _active_backends = None
@@ -39,6 +43,9 @@ def detect_os_family():
 
     if platform.system() == "Windows":
         _os_family = {"windows"}
+        return _os_family
+    if platform.system() == "Darwin":
+        _os_family = {"macos", "darwin"}
         return _os_family
 
     ids = set()
@@ -75,9 +82,16 @@ _BACKEND_COMPAT = {
     "choco":   {"windows"},
     "scoop":   {"windows"},
     "windows_native": {"windows"},
+    "brew":    {"macos", "darwin", "linux"}, # Linuxbrew exists
+    "macports":{"macos", "darwin"},
+    "nix":     {"macos", "darwin", "linux"},
+    "fink":    {"macos", "darwin"},
     "flatpak": None,  # universal
     "snap":    None,  # universal
     "pip":     None,  # universal
+    "npm":     None,  # universal
+    "cargo":   None,  # universal
+    "gem":     None,  # universal
 }
 
 
@@ -213,6 +227,24 @@ def install_package(pkg, terminal="alacritty", on_finish=None):
             cmd = ["choco", "install", pkg_id, "-y"]
         elif backend_id == "scoop":
             cmd = ["scoop", "install", pkg_id]
+        elif backend_id == "brew":
+            cmd = ["brew", "install", pkg_id]
+        elif backend_id == "macports":
+            cmd = ["sudo", "port", "install", pkg_id]
+        elif backend_id == "nix":
+            cmd = ["nix-env", "-iA", f"nixpkgs.{pkg_id}"]
+        elif backend_id == "fink":
+            cmd = ["fink", "install", pkg_id]
+        elif backend_id == "npm":
+            cmd = ["npm", "install", "-g", pkg_id]
+            if platform.system() != "Windows":
+                cmd = ["sudo"] + cmd
+        elif backend_id == "cargo":
+            cmd = ["cargo", "install", pkg_id]
+        elif backend_id == "gem":
+            cmd = ["gem", "install", pkg_id]
+            if platform.system() != "Windows":
+                cmd = ["sudo"] + cmd
         else:
             return
 
@@ -274,6 +306,24 @@ def remove_package(pkg, terminal="alacritty", on_finish=None):
             cmd = ["choco", "uninstall", pkg_id, "-y"]
         elif backend_id == "scoop":
             cmd = ["scoop", "uninstall", pkg_id]
+        elif backend_id == "brew":
+            cmd = ["brew", "uninstall", pkg_id]
+        elif backend_id == "macports":
+            cmd = ["sudo", "port", "uninstall", pkg_id]
+        elif backend_id == "nix":
+            cmd = ["nix-env", "-e", pkg_id]
+        elif backend_id == "fink":
+            cmd = ["fink", "remove", pkg_id]
+        elif backend_id == "npm":
+            cmd = ["npm", "uninstall", "-g", pkg_id]
+            if platform.system() != "Windows":
+                cmd = ["sudo"] + cmd
+        elif backend_id == "cargo":
+            cmd = ["cargo", "uninstall", pkg_id]
+        elif backend_id == "gem":
+            cmd = ["gem", "uninstall", pkg_id]
+            if platform.system() != "Windows":
+                cmd = ["sudo"] + cmd
         else:
             return
 
