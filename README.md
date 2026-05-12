@@ -23,28 +23,37 @@ VividPM automatically detects which tools are installed on your system and will 
 ### 🐧 Linux Backends
 | Backend | OS / Distribution | How to Install |
 | :--- | :--- | :--- |
-| **Pacman** | Arch, Manjaro, EndeavourOS | Pre-installed on Arch-based systems. |
-| **AUR (yay)** | Arch-based (AUR) | `sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si` |
+| **Pacman** | Arch, Manjaro, EndeavourOS | Pre-installed. |
 | **APT** | Debian, Ubuntu, Mint, Pop!_OS | Pre-installed. |
 | **DNF** | Fedora, RHEL, AlmaLinux | Pre-installed. |
 | **Zypper** | openSUSE Tumbleweed/Leap | Pre-installed. |
-| **Portage** | Gentoo | Pre-installed. |
-| **XBPS** | Void Linux | Pre-installed. |
-| **APK** | Alpine Linux | Pre-installed. |
+| **Brew** | Linux (Homebrew) | **Auto-Install Prompt** in VividPM. |
+| **Nix** | Universal Linux | **Auto-Install Prompt** in VividPM. |
 | **Flatpak** | Universal Linux | **Auto-Install Prompt** in VividPM. |
 | **Snap** | Universal Linux | **Auto-Install Prompt** in VividPM. |
 
 ### 🪟 Windows Backends
 | Backend | How to Install |
 | :--- | :--- |
-| **Winget** | Pre-installed on Windows 10/11 (App Installer). |
-| **Chocolatey** | **Auto-Install Prompt** in VividPM (Requires Admin). |
+| **Winget** | Pre-installed on Windows 10/11. |
+| **Chocolatey** | **Auto-Install Prompt** in VividPM. |
 | **Scoop** | **Auto-Install Prompt** in VividPM. |
 
-### 🐍 Cross-Platform
+### 🍏 macOS Backends
 | Backend | How to Install |
 | :--- | :--- |
-| **Pip** | `python -m pip install --upgrade pip` |
+| **Homebrew** | Pre-installed or **Auto-Install Prompt**. |
+| **MacPorts** | Detected if installed. |
+| **Nix** | Detected if installed. |
+| **Fink** | Detected if installed. |
+
+### 📦 Universal (Cross-Platform)
+| Backend | Supported OS | How to Install |
+| :--- | :--- | :--- |
+| **Pip** | Win, Linux, Mac | `python -m pip install` |
+| **NPM** | Win, Linux, Mac | **Auto-Install Prompt** |
+| **Cargo** | Win, Linux, Mac | **Auto-Install Prompt** |
+| **RubyGems**| Win, Linux, Mac | **Auto-Install Prompt** |
 
 ---
 

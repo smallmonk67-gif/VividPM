@@ -1,3 +1,4 @@
+#!/usr/bin/env xdg-open
 [Desktop Entry]
 Name=Vivid Package Manager
 Comment=The ultimate multi-platform package manager
