@@ -32,3 +32,6 @@ setup.py
 VividPM.egg-info/
 dist/
 AppDir/
+.wine_vivid/
+python_installer.exe
+build_windows/
