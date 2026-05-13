@@ -27,11 +27,34 @@ _ALL_BACKENDS = [
     flatpak_backend, snap_backend, pip_backend,
     npm_backend, cargo_backend, gem_backend,
 ]
-# Cache of currently active backends — call reload_backends() to refresh
-_active_backends = None
-_os_family = None  # Cached OS family string
-_backends_lock = threading.Lock()
 
+# Map backend IDs → the OS families they support.
+# None means the backend works on any OS (cross-distro tools).
+_BACKEND_COMPAT = {
+    "pacman":  {"arch", "manjaro", "endeavouros", "garuda", "arcolinux", "artix"},
+    "apt":     {"debian", "ubuntu", "linuxmint", "mint", "pop", "elementary",
+                "zorin", "kali", "raspbian", "armbian"},
+    "dnf":     {"fedora", "rhel", "centos", "almalinux", "rocky", "nobara",
+                "ultramarine", "mageia", "oracle"},
+    "zypper":  {"opensuse", "suse", "sles", "tumbleweed", "leap"},
+    "portage": {"gentoo", "funtoo", "chromeos"},
+    "xbps":    {"void"},
+    "apk":     {"alpine"},
+    "winget":  {"windows"},
+    "choco":   {"windows"},
+    "scoop":   {"windows"},
+    "windows_native": {"windows"},
+    "brew":    {"macos", "darwin", "linux"}, # Linuxbrew exists
+    "macports":{"macos", "darwin"},
+    "nix":     {"macos", "darwin", "linux"},
+    "fink":    {"macos", "darwin"},
+    "flatpak": None,  # universal
+    "snap":    None,  # universal
+    "pip":     None,  # universal
+    "npm":     None,  # universal
+    "cargo":   None,  # universal
+    "gem":     None,  # universal
+}
 
 def refresh_path():
     """Add common non-standard package manager paths to os.environ['PATH']."""
@@ -53,364 +76,63 @@ def refresh_path():
     
     if new_paths:
         os.environ["PATH"] = os.pathsep.join(new_paths + current_path)
-        print(f"[pkg_manager] Updated PATH with: {new_paths}")
 
+class PackageManager:
+    def __init__(self):
+        self.backends = []
+        self._os_family = None
+        self._backends_lock = threading.Lock()
+        self.reload_backends()
 
-def detect_os_family():
-    """
-    Detect the current OS. Returns a set of lowercase ID strings.
-    For Linux, reads /etc/os-release. For Windows, returns {"windows"}.
-    """
-    global _os_family
-    if _os_family is not None:
-        return _os_family
+    def detect_os_family(self):
+        if self._os_family is not None:
+            return self._os_family
 
-    ids = set()
-    if platform.system() == "Linux":
-        ids.add("linux")
-    elif platform.system() == "Darwin":
-        ids.update(["macos", "darwin"])
-    elif platform.system() == "Windows":
-        ids.add("windows")
-
-    try:
-        if os.path.exists("/etc/os-release"):
-            with open("/etc/os-release") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("ID=") or line.startswith("ID_LIKE="):
-                        _, _, val = line.partition("=")
-                        val = val.strip().strip('"').lower()
-                        # ID_LIKE can be space-separated
-                        ids.update(val.split())
-    except Exception:
-        pass
-
-    _os_family = ids
-    return _os_family
-
-
-# Map backend IDs → the OS families they support.
-# None means the backend works on any OS (cross-distro tools).
-_BACKEND_COMPAT = {
-    "pacman":  {"arch", "manjaro", "endeavouros", "garuda", "arcolinux", "artix"},
-    "apt":     {"debian", "ubuntu", "linuxmint", "mint", "pop", "elementary",
-                "zorin", "kali", "raspbian", "armbian"},
-    "dnf":     {"fedora", "rhel", "centos", "almalinux", "rocky", "nobara",
-                "ultramarine", "mageia", "oracle"},
-    "zypper":  {"opensuse", "suse", "sles", "tumbleweed", "leap"},
-    "portage": {"gentoo", "funtoo", "chromeos"},
-    "xbps":    {"void"},
-    "apk":     {"alpine"},
-    "apk":     {"alpine"},
-    "winget":  {"windows"},
-    "choco":   {"windows"},
-    "scoop":   {"windows"},
-    "windows_native": {"windows"},
-    "brew":    {"macos", "darwin", "linux"}, # Linuxbrew exists
-    "macports":{"macos", "darwin"},
-    "nix":     {"macos", "darwin", "linux"},
-    "fink":    {"macos", "darwin"},
-    "flatpak": None,  # universal
-    "snap":    None,  # universal
-    "pip":     None,  # universal
-    "npm":     None,  # universal
-    "cargo":   None,  # universal
-    "gem":     None,  # universal
-}
-
-
-def _is_os_compatible(backend):
-    """Return True if the backend is compatible with the current OS."""
-    compat = _BACKEND_COMPAT.get(getattr(backend, "BACKEND_ID", ""), None)
-    if compat is None:
-        return True  # cross-distro backend
-    os_ids = detect_os_family()
-    return bool(os_ids & compat)
-
-
-def reload_backends():
-    """Re-detect which backends are available. Call after installing a new one."""
-    global _active_backends
-    refresh_path()
-    
-    with _backends_lock:
-        _active_backends = []
-        for b in _ALL_BACKENDS:
-            bid = getattr(b, "BACKEND_ID", "unknown")
-            if _is_os_compatible(b):
-                if b.is_available():
-                    _active_backends.append(b)
-                else:
-                    # Optional: print(f"[pkg_manager] {bid} not found (is_available=False)")
-                    pass
-            else:
-                # Optional: print(f"[pkg_manager] {bid} not compatible with this OS")
-                pass
-    
-    print(f"[pkg_manager] Active backends: {[getattr(b, 'BACKEND_ID', '') for b in _active_backends]}")
-    return _active_backends
-
-
-def get_available_backends():
-    """Returns a list of backend modules that are available on this system."""
-    global _active_backends
-    if _active_backends is None:
-        reload_backends()
-    with _backends_lock:
-        # Return a copy to be thread-safe
-        return list(_active_backends)
-
-
-def get_installed_all():
-    """Return combined installed packages from all available backends."""
-    results = []
-    for backend in get_available_backends():
-        try:
-            results.extend(backend.get_installed())
-        except Exception as e:
-            print(f"[pkg_manager] error getting installed from {backend.BACKEND_ID}: {e}")
-    return results
-
-
-def search_all(query: str, callback):
-    """
-    Search all available backends in parallel, streaming results as they arrive.
-    callback is called multiple times, once per backend, with a list of packages.
-    """
-    backends = get_available_backends()
-
-    def worker(backend):
-        try:
-            results = backend.search(query)
-            callback(results, backend.BACKEND_ID)
-        except Exception as e:
-            print(f"[pkg_manager] search error in {backend.BACKEND_ID}: {e}")
-            utils.show_error("Search Error", f"Backend {backend.DISPLAY_NAME} failed:\n{e}")
-            callback([], backend.BACKEND_ID)
-
-    for backend in backends:
-        threading.Thread(target=worker, args=(backend,), daemon=True).start()
-
-
-def async_get_installed(callback):
-    """Fetch installed packages from all backends in background threads, streaming results."""
-    backends = get_available_backends()
-
-    def worker(backend):
-        try:
-            results = backend.get_installed()
-            callback(results, backend.BACKEND_ID)
-        except Exception as e:
-            print(f"[pkg_manager] get_installed error in {backend.BACKEND_ID}: {e}")
-            utils.show_error("Load Error", f"Failed to fetch installed apps from {backend.DISPLAY_NAME}:\n{e}")
-            callback([], backend.BACKEND_ID)
-
-    for backend in backends:
-        threading.Thread(target=worker, args=(backend,), daemon=True).start()
-
-
-def async_fetch_extended_info(pkg, callback):
-    """
-    Fetch extended dependency info for a package, routing to the right backend.
-    pkg is a package dict with a 'backend' key.
-    """
-    backend_id = pkg.get("backend", "pacman")
-    pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
-
-    backend_map = {b.BACKEND_ID: b for b in get_available_backends()}
-    backend = backend_map.get(backend_id)
-
-    def worker():
-        try:
-            info = backend.get_info(pkg_id) if backend else {}
-        except Exception as e:
-            print(f"[pkg_manager] get_info error: {e}")
-            info = {}
-        callback(info)
-
-    threading.Thread(target=worker, daemon=True).start()
-
-
-def install_package(pkg, terminal="alacritty", on_finish=None):
-    """Launch install for the package using the correct backend."""
-    import subprocess, time
-
-    backend_id = pkg.get("backend", "pacman")
-    pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
-    backend_map = {b.BACKEND_ID: b for b in get_available_backends()}
-    backend = backend_map.get(backend_id, pacman_backend)
-
-    def worker():
-        if backend_id == "pacman":
-            helper = "yay" if shutil.which("yay") else "paru" if shutil.which("paru") else "pacman"
-            cmd = [helper, "-S", "--needed", pkg_id]
-            if helper == "pacman": cmd = ["sudo"] + cmd
-        elif backend_id == "apt":
-            cmd = ["sudo", "apt", "install", "-y", pkg_id]
-        elif backend_id == "dnf":
-            cmd = ["sudo", "dnf", "install", "-y", pkg_id]
-        elif backend_id == "zypper":
-            cmd = ["sudo", "zypper", "install", "-y", pkg_id]
-        elif backend_id == "portage":
-            cmd = ["sudo", "emerge", pkg_id]
-        elif backend_id == "xbps":
-            cmd = ["sudo", "xbps-install", "-S", pkg_id]
-        elif backend_id == "apk":
-            cmd = ["sudo", "apk", "add", pkg_id]
-        elif backend_id == "flatpak":
-            cmd = ["flatpak", "install", "flathub", pkg_id]
-        elif backend_id == "snap":
-            cmd = ["sudo", "snap", "install", pkg_id]
-        elif backend_id == "pip":
-            pip = "pip" if shutil.which("pip") else "pip3"
-            if platform.system() == "Windows":
-                cmd = [pip, "install", pkg_id]
-            else:
-                cmd = ["sudo", pip, "install", "--break-system-packages", pkg_id]
-        elif backend_id == "winget":
-            cmd = ["winget", "install", "-e", "--id", pkg_id]
-        elif backend_id == "choco":
-            cmd = ["choco", "install", pkg_id, "-y"]
-        elif backend_id == "scoop":
-            cmd = ["scoop", "install", pkg_id]
-        elif backend_id == "brew":
-            cmd = ["brew", "install", pkg_id]
-        elif backend_id == "macports":
-            cmd = ["sudo", "port", "install", pkg_id]
-        elif backend_id == "nix":
-            cmd = ["nix-env", "-iA", f"nixpkgs.{pkg_id}"]
-        elif backend_id == "fink":
-            cmd = ["fink", "install", pkg_id]
-        elif backend_id == "npm":
-            cmd = ["npm", "install", "-g", pkg_id]
-            if platform.system() != "Windows":
-                cmd = ["sudo"] + cmd
-        elif backend_id == "cargo":
-            cmd = ["cargo", "install", pkg_id]
-        elif backend_id == "gem":
-            cmd = ["gem", "install", pkg_id]
-            if platform.system() != "Windows":
-                cmd = ["sudo"] + cmd
-        else:
-            return
-
-        # Wrap command in terminal spawn logic
-        if platform.system() == "Windows":
-            # On Windows, 'start cmd /k' opens a new terminal window that stays open
-            full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
-            try:
-                subprocess.Popen(full_cmd, shell=True)
-                time.sleep(1) # Give it time to spawn
-                if on_finish:
-                    on_finish()
-                return
-            except Exception as e:
-                print(f"[pkg_manager] install error: {e}")
-                utils.show_error("Installation Failed", f"Could not start installation process:\n{e}")
-                return
-        else:
-            # On Linux, wrap in bash to ensure we can pause on failure
-            cmd_str = " ".join(cmd)
-            bash_cmd = f"{cmd_str} || (echo; echo 'Process failed. Press Enter to close...'; read)"
-            full_cmd = [terminal, "-e", "bash", "-c", bash_cmd]
+        ids = set()
+        if platform.system() == "Linux":
+            ids.add("linux")
+        elif platform.system() == "Darwin":
+            ids.update(["macos", "darwin"])
+        elif platform.system() == "Windows":
+            ids.add("windows")
 
         try:
-            proc = subprocess.Popen(full_cmd)
-            proc.wait()
-            time.sleep(0.5)
-            if on_finish:
-                on_finish()
-        except Exception as e:
-            print(f"[pkg_manager] install error: {e}")
+            if os.path.exists("/etc/os-release"):
+                with open("/etc/os-release") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("ID=") or line.startswith("ID_LIKE="):
+                            _, _, val = line.partition("=")
+                            val = val.strip().strip('"').lower()
+                            ids.update(val.split())
+        except: pass
 
-    threading.Thread(target=worker, daemon=True).start()
+        self._os_family = ids
+        return self._os_family
 
+    def _is_os_compatible(self, backend):
+        compat = _BACKEND_COMPAT.get(getattr(backend, "BACKEND_ID", ""), None)
+        if compat is None: return True
+        os_ids = self.detect_os_family()
+        return bool(os_ids & compat)
 
-def remove_package(pkg, terminal="alacritty", on_finish=None):
-    """Launch removal for the package using the correct backend."""
-    import subprocess, time, shutil
+    def reload_backends(self):
+        refresh_path()
+        with self._backends_lock:
+            self.backends = []
+            for b in _ALL_BACKENDS:
+                if self._is_os_compatible(b):
+                    if b.is_available():
+                        self.backends.append(b)
+        return self.backends
 
-    backend_id = pkg.get("backend", "pacman")
-    pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
-    def worker():
-        if backend_id == "pacman":
-            cmd = ["sudo", "pacman", "-Rns", pkg_id]
-        elif backend_id == "apt":
-            cmd = ["sudo", "apt", "remove", "-y", pkg_id]
-        elif backend_id == "dnf":
-            cmd = ["sudo", "dnf", "remove", "-y", pkg_id]
-        elif backend_id == "zypper":
-            cmd = ["sudo", "zypper", "remove", "-y", pkg_id]
-        elif backend_id == "portage":
-            cmd = ["sudo", "emerge", "--deselect", pkg_id]
-        elif backend_id == "xbps":
-            cmd = ["sudo", "xbps-remove", "-R", pkg_id]
-        elif backend_id == "apk":
-            cmd = ["sudo", "apk", "del", pkg_id]
-        elif backend_id == "flatpak":
-            cmd = ["flatpak", "uninstall", pkg_id]
-        elif backend_id == "snap":
-            cmd = ["sudo", "snap", "remove", pkg_id]
-        elif backend_id == "pip":
-            pip = "pip" if shutil.which("pip") else "pip3"
-            if platform.system() == "Windows":
-                cmd = [pip, "uninstall", "-y", pkg_id]
-            else:
-                cmd = ["sudo", pip, "uninstall", "-y", pkg_id]
-        elif backend_id == "winget":
-            cmd = ["winget", "uninstall", "-e", "--id", pkg_id]
-        elif backend_id == "choco":
-            cmd = ["choco", "uninstall", pkg_id, "-y"]
-        elif backend_id == "scoop":
-            cmd = ["scoop", "uninstall", pkg_id]
-        elif backend_id == "brew":
-            cmd = ["brew", "uninstall", pkg_id]
-        elif backend_id == "macports":
-            cmd = ["sudo", "port", "uninstall", pkg_id]
-        elif backend_id == "nix":
-            cmd = ["nix-env", "-e", pkg_id]
-        elif backend_id == "fink":
-            cmd = ["fink", "remove", pkg_id]
-        elif backend_id == "npm":
-            cmd = ["npm", "uninstall", "-g", pkg_id]
-            if platform.system() != "Windows":
-                cmd = ["sudo"] + cmd
-        elif backend_id == "cargo":
-            cmd = ["cargo", "uninstall", pkg_id]
-        elif backend_id == "gem":
-            cmd = ["gem", "uninstall", pkg_id]
-            if platform.system() != "Windows":
-                cmd = ["sudo"] + cmd
-        else:
-            return
+    def get_backend(self, backend_id):
+        for b in self.backends:
+            if getattr(b, "BACKEND_ID", "") == backend_id:
+                return b
+        return None
 
-        # Wrap command in terminal spawn logic
-        if platform.system() == "Windows":
-            full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
-            try:
-                subprocess.Popen(full_cmd, shell=True)
-                time.sleep(1)
-                if on_finish:
-                    on_finish()
-                return
-            except Exception as e:
-                print(f"[pkg_manager] remove error: {e}")
-                utils.show_error("Removal Failed", f"Could not start removal process:\n{e}")
-                return
-        else:
-            # On Linux, wrap in bash to ensure we can pause on failure
-            cmd_str = " ".join(cmd)
-            bash_cmd = f"{cmd_str} || (echo; echo 'Process failed. Press Enter to close...'; read)"
-            full_cmd = [terminal, "-e", "bash", "-c", bash_cmd]
-
-        try:
-            proc = subprocess.Popen(full_cmd)
-            proc.wait()
-            time.sleep(0.5)
-            if on_finish:
-                on_finish()
-        except Exception as e:
-            print(f"[pkg_manager] remove error: {e}")
-
-    threading.Thread(target=worker, daemon=True).start()
+    def refresh_installed_cache(self):
+        for b in self.backends:
+            if hasattr(b, "refresh_cache"):
+                b.refresh_cache()
