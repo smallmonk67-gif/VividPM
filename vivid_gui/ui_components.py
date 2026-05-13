@@ -2,13 +2,26 @@ import customtkinter as ctk
 import datetime
 from vivid_gui import icon_resolver
 
-# Premium color palette (macOS Focus)
+# Premium color palette
 BACKEND_COLORS = {
+    "pacman":  "#0099ff",  # Brighter Arch blue
+    "flatpak": "#4180d4",  # Deep Flatpak blue
+    "snap":    "#e95420",  # Vibrant Snap orange
+    "pip":     "#3775a9",  # Python blue
+    "apt":     "#dd4814",  # Ubuntu/Debian orange
+    "dnf":     "#3C6EB4",  # Fedora blue
+    "zypper":  "#73BA25",  # openSUSE green
+    "portage": "#54487A",  # Gentoo purple
+    "xbps":    "#478061",  # Void Linux teal
+    "apk":     "#0D597F",  # Alpine blue
+    "winget":  "#00a4ef",  # Windows blue
+    "choco":   "#8b4513",  # SaddleBrown
+    "scoop":   "#ff8c00",  # DarkOrange
+    "windows_native": "#0078d4", # Windows Native blue
     "brew":    "#f2b144",  # Homebrew brown/orange
     "macports":"#2a5078",  # MacPorts blue
     "nix":     "#5277c3",  # Nix blue
     "fink":    "#8b0000",  # Fink dark red
-    "pip":     "#3775a9",  # Python blue
     "npm":     "#cb3837",  # npm red
     "cargo":   "#f46623",  # Rust cargo orange
     "gem":     "#701516",  # Ruby gem dark red
@@ -18,15 +31,29 @@ BACKEND_COLORS = {
 MODERN_FONT = ("Inter", "Roboto", "Segoe UI", "Ubuntu", "Cantarell", "sans-serif")
 
 BACKEND_LABELS = {
-    "brew":    "Homebrew",
+    "pacman":  "pacman",
+    "flatpak": "Flatpak",
+    "snap":    "Snap",
+    "pip":     "pip",
+    "apt":     "APT",
+    "dnf":     "DNF",
+    "zypper":  "Zypper",
+    "portage": "Portage",
+    "xbps":    "XBPS",
+    "apk":     "APK",
+    "winget":  "Winget",
+    "choco":   "Choco",
+    "scoop":   "Scoop",
+    "windows_native": "Windows",
+    "brew":    "Brew",
     "macports":"MacPorts",
     "nix":     "Nix",
     "fink":    "Fink",
-    "pip":     "pip",
     "npm":     "npm",
     "cargo":   "Cargo",
     "gem":     "Gem",
 }
+
 
 class SearchBar(ctk.CTkFrame):
     def __init__(self, master, search_callback, **kwargs):
@@ -43,6 +70,7 @@ class SearchBar(ctk.CTkFrame):
         query = self.entry.get().strip()
         self.search_callback(query)
 
+
 class BackendFilterBar(ctk.CTkFrame):
     def __init__(self, master, backends, on_filter_change, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
@@ -56,7 +84,7 @@ class BackendFilterBar(ctk.CTkFrame):
         for backend in backends:
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")
-            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=75, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
+            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             btn.pack(side="left", padx=2)
             self._buttons[bid] = btn
 
@@ -74,6 +102,7 @@ class BackendFilterBar(ctk.CTkFrame):
             btn.configure(fg_color=BACKEND_COLORS.get(bid, "gray"))
         self.active_backends = set(self._buttons.keys())
         self.on_filter_change(self.active_backends)
+
 
 class PackageListFrame(ctk.CTkScrollableFrame):
     def __init__(self, master, on_select_callback, **kwargs):
@@ -159,18 +188,19 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         self.selected_item = item_frame; self.selected_item.set_selected(True)
         self.on_select_callback(pkg_data)
 
+
 class PackageListItem(ctk.CTkFrame):
     def __init__(self, master, pkg_data, click_callback, **kwargs):
         super().__init__(master, corner_radius=15, fg_color=("gray90", "#252525"), border_width=1, border_color=("gray80", "#333333"), **kwargs)
         self.pkg_data = pkg_data; self.click_callback = click_callback
         self.grid_columnconfigure(1, weight=1)
-        backend = pkg_data.get("backend", "brew")
+        backend = pkg_data.get("backend", "pacman")
         icon_img = icon_resolver.get_icon_image(pkg_data.get("Icon", ""), size=(40, 40)) or icon_resolver.get_placeholder_icon(size=(40, 40))
         self.icon_label = ctk.CTkLabel(self, text="", image=icon_img)
         self.icon_label.grid(row=0, column=0, rowspan=2, padx=(15, 5), pady=10)
         self.name_label = ctk.CTkLabel(self, text=pkg_data.get("Name", "Unknown"), font=ctk.CTkFont(family=MODERN_FONT[0], size=14, weight="bold"), anchor="w")
         self.name_label.grid(row=0, column=1, padx=(5, 15), pady=(12, 0), sticky="ew")
-        badge = ctk.CTkLabel(self, text=BACKEND_LABELS.get(backend, backend).upper(), fg_color=BACKEND_COLORS.get(backend, "gray"), corner_radius=20, text_color="white", font=ctk.CTkFont(family=MODERN_FONT[0], size=9, weight="bold"), width=75, height=20)
+        badge = ctk.CTkLabel(self, text=BACKEND_LABELS.get(backend, backend).upper(), fg_color=BACKEND_COLORS.get(backend, "gray"), corner_radius=20, text_color="white", font=ctk.CTkFont(family=MODERN_FONT[0], size=9, weight="bold"), width=65, height=20)
         badge.place(relx=1.0, x=-15, y=15, anchor="ne")
         desc = pkg_data.get("Description", "No description available.")
         if len(desc) > 85: desc = desc[:82] + "..."
@@ -187,6 +217,7 @@ class PackageListItem(ctk.CTkFrame):
         self._selected = selected
         if selected: self.configure(fg_color=("#eef7ff", "#1a2a3a"), border_color=("#0099ff", "#0099ff"), border_width=2)
         else: self.configure(fg_color=("gray90", "#252525"), border_color=("gray80", "#333333"), border_width=1)
+
 
 class PackageDetailFrame(ctk.CTkScrollableFrame):
     def __init__(self, master, on_install, on_remove, on_run=None, fetch_extended_info=None, **kwargs):
@@ -208,7 +239,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self._bind_scroll_recursive(self)
 
     def display_package(self, pkg):
-        self.current_pkg = pkg; backend = pkg.get("backend", "brew"); color = BACKEND_COLORS.get(backend, "gray")
+        self.current_pkg = pkg; backend = pkg.get("backend", "pacman"); color = BACKEND_COLORS.get(backend, "gray")
         self.title_label.configure(text=pkg.get("Name", "Unknown")); self.hero_frame.configure(fg_color=color)
         self.hero_icon.configure(image=icon_resolver.get_icon_image(pkg.get("Icon", ""), size=(64, 64)) or icon_resolver.get_placeholder_icon(size=(64, 64)))
         self._set_text(self.desc_textbox, pkg.get("Description", "No description available."))
