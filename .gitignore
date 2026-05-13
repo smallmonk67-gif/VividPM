@@ -17,8 +17,6 @@ Thumbs.db
 remove_bg.py
 
 # Build artifacts
-*.AppImage
-*.Appimage
 AppImageBuild/
 VividPM.AppDir/
 .build_cache/
