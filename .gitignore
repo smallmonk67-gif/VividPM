@@ -16,3 +16,7 @@ ENV/
 Thumbs.db
 remove_bg.py
 releases/
+*.AppImage
+AppImageBuild/
+.build_cache/
+build_appimage.sh
