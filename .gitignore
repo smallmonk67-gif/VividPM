@@ -17,7 +17,6 @@ Thumbs.db
 remove_bg.py
 
 # Build artifacts
-releases/
 *.AppImage
 *.Appimage
 AppImageBuild/
@@ -35,3 +34,4 @@ AppDir/
 .wine_vivid/
 python_installer.exe
 build_windows/
+!releases/
