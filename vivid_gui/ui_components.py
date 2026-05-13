@@ -156,10 +156,12 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         if self._spinner_job is not None: self._spinner_frame.pack(fill="x", padx=10, pady=6)
 
     def _bind_scroll_recursive(self, widget):
+        """Ironclad recursive binding for the scroll wheel."""
         def on_mouse_scroll(event):
             delta = 0
-            if event.num == 4 or (hasattr(event, "delta") and event.delta > 0): delta = -1
-            elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0): delta = 1
+            if event.num == 4: delta = -1
+            elif event.num == 5: delta = 1
+            elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
             if delta != 0:
                 try: self._canvas.yview_scroll(delta, "units")
                 except: pass
@@ -245,10 +247,12 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
     def _on_extended_info(self, info): self.after(0, lambda: self._set_text(self.depends_text, info.get("Depends On", "None")))
     def _set_text(self, widget, text): widget.configure(state="normal"); widget.delete("1.0", "end"); widget.insert("1.0", text); widget.configure(state="disabled")
     def _bind_scroll_recursive(self, widget):
+        """Ironclad recursive binding for the scroll wheel."""
         def on_mouse_scroll(event):
             delta = 0
-            if event.num == 4 or (hasattr(event, "delta") and event.delta > 0): delta = -1
-            elif event.num == 5 or (hasattr(event, "delta") and event.delta < 0): delta = 1
+            if event.num == 4: delta = -1
+            elif event.num == 5: delta = 1
+            elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
             if delta != 0:
                 try: self._canvas.yview_scroll(delta, "units")
                 except: pass
