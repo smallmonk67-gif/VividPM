@@ -34,4 +34,17 @@ AppDir/
 .wine_vivid/
 python_installer.exe
 build_windows/
+*.spec
+bundle_temp/
+temp_test/
+
+# Logs
+*.log
+crash_log.txt
+
+# Keep releases folder but ignore large binaries
 !releases/
+releases/*.Appimage
+releases/*.AppImage
+releases/*.exe
+releases/*.zip
