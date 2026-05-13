@@ -1,4 +1,7 @@
-name: Build macOS Release
+name: macOS-Only Release Build
+
+# This workflow is strictly and exclusively for macOS distribution.
+# Windows and Linux builds are handled locally or via separate processes.
 
 on:
   push:
