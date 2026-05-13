@@ -44,12 +44,11 @@ jobs:
     - name: Package App
       run: |
         cd dist
-        # Zip the .app bundle (or the standalone binary if onefile)
-        # Note: on macOS --windowed creates a 'VividPM.app' folder
-        zip -r ../VividPM-macOS.zip "VividPM.app"
+        # Zip the .app bundle with the standardized naming scheme
+        zip -r ../VividPM_MacOS_v2.0.0.zip "VividPM.app"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: VividPM-macOS
-        path: VividPM-macOS.zip
+        path: VividPM_MacOS_v2.0.0.zip
