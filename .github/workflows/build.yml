@@ -1,0 +1,52 @@
+name: Build macOS Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller customtkinter Pillow darkdetect requests
+
+    - name: Build with PyInstaller
+      run: |
+        # On macOS, we use ':' as the delimiter for --add-data
+        # We also grab the CTK path dynamically
+        CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
+        
+        pyinstaller --noconfirm --onefile --windowed \
+          --icon "icon.png" \
+          --name "VividPM" \
+          --add-data "${CTK_PATH}:customtkinter/" \
+          --add-data "icon.png:." \
+          --add-data "vivid_gui:vivid_gui" \
+          "entry_point.py"
+
+    - name: Package App
+      run: |
+        cd dist
+        # Zip the .app bundle (or the standalone binary if onefile)
+        # Note: on macOS --windowed creates a 'VividPM.app' folder
+        zip -r ../VividPM-macOS.zip "VividPM.app"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VividPM-macOS
+        path: VividPM-macOS.zip
