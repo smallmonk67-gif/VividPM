@@ -30,6 +30,9 @@ BACKEND_COLORS = {
     "gem":     "#701516",  # Ruby gem dark red
 }
 
+# Modern, crisp font stack
+MODERN_FONT = ("Inter", "Roboto", "Segoe UI", "Ubuntu", "Cantarell", "sans-serif")
+
 BACKEND_LABELS = {
     "pacman":  "pacman",
     "flatpak": "Flatpak",
@@ -65,7 +68,7 @@ class SearchBar(ctk.CTkFrame):
 
         self.grid_columnconfigure(0, weight=1)
 
-        self.entry = ctk.CTkEntry(self, placeholder_text="Search packages (e.g. firefox, vlc)...")
+        self.entry = ctk.CTkEntry(self, placeholder_text="Search packages (e.g. firefox, vlc)...", font=ctk.CTkFont(family=MODERN_FONT[0], size=14))
         self.entry.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="ew")
         
         # Bindings for productivity
@@ -73,7 +76,7 @@ class SearchBar(ctk.CTkFrame):
         self.entry.bind("<Control-a>", self._select_all)
         self.entry.bind("<Control-BackSpace>", self._delete_word)
 
-        self.search_btn = ctk.CTkButton(self, text="Search", width=80, command=self.on_search)
+        self.search_btn = ctk.CTkButton(self, text="Search", width=80, command=self.on_search, font=ctk.CTkFont(family=MODERN_FONT[0], weight="bold"))
         self.search_btn.grid(row=0, column=1, padx=(5, 10), pady=10)
 
     def _select_all(self, event=None):
@@ -99,7 +102,7 @@ class BackendFilterBar(ctk.CTkFrame):
         self.active_backends = set(b.BACKEND_ID for b in backends)
         self._buttons = {}
 
-        label = ctk.CTkLabel(self, text="Filter:", text_color="gray")
+        label = ctk.CTkLabel(self, text="Filter:", text_color="gray", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
         label.pack(side="left", padx=(8, 4))
 
         all_btn = ctk.CTkButton(
@@ -119,6 +122,7 @@ class BackendFilterBar(ctk.CTkFrame):
                 width=70, height=26,
                 fg_color=color,
                 hover_color=color,
+                font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"),
                 command=lambda b=bid: self._toggle(b)
             )
             btn.pack(side="left", padx=2)
@@ -162,14 +166,14 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         self._spinner_label = ctk.CTkLabel(
             self._spinner_frame,
             text="",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=16),
             text_color=("gray40", "gray60"),
         )
         self._spinner_label.pack(side="left", padx=(8, 4))
         self._spinner_text = ctk.CTkLabel(
             self._spinner_frame,
             text="Searching…",
-            font=ctk.CTkFont(size=13),
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=13),
             text_color=("gray40", "gray60"),
         )
         self._spinner_text.pack(side="left")
@@ -334,7 +338,7 @@ class PackageListItem(ctk.CTkFrame):
         self.name_label = ctk.CTkLabel(
             top_row, 
             text=title_display, 
-            font=ctk.CTkFont(size=14, weight="bold"), 
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=14, weight="bold"), 
             anchor="w",
             text_color=("#333333", "white")
         )
@@ -349,7 +353,7 @@ class PackageListItem(ctk.CTkFrame):
             fg_color=badge_color, 
             corner_radius=20,
             text_color="white", 
-            font=ctk.CTkFont(size=9, weight="bold"),
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=9, weight="bold"),
             width=65, height=20
         )
         badge.grid(row=0, column=1, padx=(10, 0), sticky="e")
@@ -362,7 +366,7 @@ class PackageListItem(ctk.CTkFrame):
             text=desc, 
             text_color=("gray40", "gray60"), 
             anchor="w",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=12),
             wraplength=280
         )
         self.desc_label.grid(row=1, column=1, padx=(5, 15), pady=(2, 12), sticky="w")
@@ -415,7 +419,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
 
         self.title_label = ctk.CTkLabel(
             self.hero_frame, text="Select a package", 
-            font=ctk.CTkFont(size=24, weight="bold"),
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=24, weight="bold"),
             text_color="white",
             wraplength=450, justify="left", anchor="w"
         )
@@ -423,7 +427,7 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
 
         self.backend_badge = ctk.CTkLabel(
             self, text="", corner_radius=12, padx=12, pady=4,
-            font=ctk.CTkFont(size=12, weight="bold"), text_color="white"
+            font=ctk.CTkFont(family=MODERN_FONT[0], size=12, weight="bold"), text_color="white"
         )
         self.backend_badge.grid(row=1, column=0, padx=20, pady=(0, 2), sticky="w")
 
@@ -453,21 +457,21 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self.install_btn = ctk.CTkButton(
             self.action_frame, text="Install Package", command=self.handle_install,
             fg_color="#2eb354", hover_color="#248f43", 
-            height=40, corner_radius=12, font=ctk.CTkFont(weight="bold")
+            height=40, corner_radius=12, font=ctk.CTkFont(family=MODERN_FONT[0], weight="bold")
         )
         self.install_btn.pack(side="left", padx=(0, 10))
 
         self.remove_btn = ctk.CTkButton(
             self.action_frame, text="Remove", command=self.handle_remove,
             fg_color="#e53935", hover_color="#b71c1c",
-            height=40, corner_radius=12, font=ctk.CTkFont(weight="bold")
+            height=40, corner_radius=12, font=ctk.CTkFont(family=MODERN_FONT[0], weight="bold")
         )
         self.remove_btn.pack(side="left", padx=(0, 10))
 
         self.run_btn = ctk.CTkButton(
             self.action_frame, text="Launch Application", command=self.handle_run,
             fg_color="#1a73e8", hover_color="#1557b0",
-            height=40, corner_radius=12, font=ctk.CTkFont(weight="bold")
+            height=40, corner_radius=12, font=ctk.CTkFont(family=MODERN_FONT[0], weight="bold")
         )
         self.run_btn.pack(side="left")
 
@@ -492,9 +496,9 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self.required_text.configure(state="disabled")
 
         # Set default font for textboxes to avoid invisible text on Windows
-        self.desc_textbox.configure(font=ctk.CTkFont(size=13))
-        self.depends_text.configure(font=ctk.CTkFont(size=12))
-        self.required_text.configure(font=ctk.CTkFont(size=12))
+        self.desc_textbox.configure(font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
+        self.depends_text.configure(font=ctk.CTkFont(family=MODERN_FONT[0], size=12))
+        self.required_text.configure(font=ctk.CTkFont(family=MODERN_FONT[0], size=12))
 
         self.hide_content()
 
