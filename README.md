@@ -57,36 +57,41 @@ VividPM automatically detects which tools are installed on your system and will 
 
 ---
 
-## 🛠️ Getting Started
+## 🛠️ Installation & Download
 
-### 🌟 Option 1: Universal Portable (Recommended)
-This is the easiest way to run VividPM. It is a single file that works on **Windows, macOS, and Linux**.
+VividPM is now available as a **Native, Zero-Config application** for all major platforms. No Python installation is required to use the native binaries.
 
-1. **Download** `VividPM_Universal.pyw` from the **[latest release](https://github.com/smallmonk67-gif/VividPM/releases)**.
-2. **Double-click** to run.
-   - **Windows**: Opens natively (requires Python 3.10+ installed).
-   - **macOS**: Opens natively.
-   - **Linux**: Right-click -> **Properties** -> **Permissions** -> **Allow executing file as program**, then double-click.
-3. **Auto-Setup**: On the first run, the app will automatically detect and install its own dependencies (like `customtkinter`) in a safe virtual environment (`~/.vividpm_venv`).
+### 🌟 Native Binaries (Recommended)
+Download the professional bundle for your platform from the **[Latest Release](https://github.com/smallmonk67-gif/VividPM/releases/latest)**:
+
+*   **🪟 Windows**: Download `VividPM_Windows_x86_64_v2.0.0.exe`. Double-click to launch.
+*   **🐧 Linux**: Download `VividPM_Linux_x86_64_v2.0.0.Appimage`. Make it executable and run.
+*   **🍏 macOS**: Download `VividPM_MacOS_v2.0.0.zip`, extract it, and move `VividPM.app` to your Applications folder.
 
 ---
 
-### 🔧 Option 2: Developer / Manual Setup
-If you prefer to run from source code or contribute:
+### 🐍 Universal Portable (For Developers)
+If you already have Python 3.10+ installed and prefer a lightweight script:
 
-1. **Clone the Repo**:
-   ```bash
-   git clone https://github.com/smallmonk67-gif/VividPM.git
-   cd VividPM
-   ```
-2. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Run**:
-   - **Linux**: `./run.sh`
-   - **Windows**: `run.bat`
-   - **macOS**: `python3 launcher.py`
+1.  **Download** `VividPM_Universal_v2.0.0.pyw` from the **[Releases](https://github.com/smallmonk67-gif/VividPM/releases)**.
+2.  **Run**:
+    -   **Windows/macOS**: Double-click the file.
+    -   -   **Linux**: `./run.sh` or `python3 releases/VividPM_Universal_v2.0.0.pyw`.
+
+---
+
+### 🔧 Manual Build / Development
+1.  **Clone the Repo**:
+    ```bash
+    git clone https://github.com/smallmonk67-gif/VividPM.git
+    cd VividPM
+    ```
+2.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  **Run**:
+    -   **Native Shell**: `./run.sh`
 
 ---
 
