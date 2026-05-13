@@ -15,8 +15,20 @@ ENV/
 .DS_Store
 Thumbs.db
 remove_bg.py
+
+# Build artifacts
 releases/
 *.AppImage
+*.Appimage
 AppImageBuild/
+VividPM.AppDir/
 .build_cache/
+.build_venv/
+build/
+appimagetool
 build_appimage.sh
+build_appimage_cx.sh
+setup.py
+VividPM.egg-info/
+dist/
+AppDir/

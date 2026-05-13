@@ -5,6 +5,41 @@ import subprocess
 import shutil
 import customtkinter as ctk
 
+def get_scaling_factor():
+    """
+    Attempts to detect the system scaling factor (HiDPI) on Linux.
+    Uses environment variables, xrdb, and xrandr.
+    """
+    import os
+    import subprocess
+    
+    # 1. Check environment variables
+    for env in ["GDK_SCALE", "QT_SCALE_FACTOR", "PLASMA_USE_QT_SCALING"]:
+        val = os.environ.get(env)
+        if val:
+            try: return float(val)
+            except: pass
+
+    # 2. Check Xft.dpi via xrdb
+    try:
+        xrdb_res = subprocess.run(["xrdb", "-query"], capture_output=True, text=True, timeout=1)
+        if xrdb_res.returncode == 0:
+            for line in xrdb_res.stdout.splitlines():
+                if "Xft.dpi" in line:
+                    dpi = float(line.split(":")[1].strip())
+                    return dpi / 96.0
+    except: pass
+
+    # 3. Check xrandr
+    try:
+        xrandr_res = subprocess.run(["xrandr", "--verbose"], capture_output=True, text=True, timeout=1)
+        if xrandr_res.returncode == 0:
+            if "EDID" in xrandr_res.stdout: # Rough check for high-res
+                return 1.5 # Safe bet for modern Linux desktops if unsure
+    except: pass
+    
+    return 1.0
+
 def get_native_file_picker(title="Select File"):
     """
     Attempts to open the native system file explorer (Zenity or KDialog)
