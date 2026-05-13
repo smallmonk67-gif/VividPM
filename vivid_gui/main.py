@@ -28,24 +28,25 @@ class App(ctk.CTk):
         self.installer = PackageInstaller()
         self.action_runner = ActionRunner()
 
+        # Build UI
         self._setup_ui()
         
-        # Initial scan for installed apps in background
-        threading.Thread(target=self._initial_scan, daemon=True).start()
+        # Start background scan for installed apps
+        self.after(500, self._initial_scan)
 
     def _setup_ui(self):
-        # Left Panel: Search & List
-        self.left_panel = ctk.CTkFrame(self, width=420, corner_radius=0)
+        # Left Panel: Sidebar + Search
+        self.left_panel = ctk.CTkFrame(self, width=320, corner_radius=0)
         self.left_panel.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self.left_panel.grid_propagate(False)
 
-        # Header with Title
-        self.header_label = ctk.CTkLabel(
-            self.left_panel, text="VividPM", 
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color=("#333333", "#ffffff")
+        # App Logo/Title
+        self.logo_label = ctk.CTkLabel(
+            self.left_panel, 
+            text="VIVID", 
+            font=ctk.CTkFont(size=24, weight="bold", family="Outfit")
         )
-        self.header_label.pack(pady=(20, 10), padx=20, anchor="w")
+        self.logo_label.pack(pady=(20, 10))
 
         # Search Bar
         self.search_bar = SearchBar(self.left_panel, self.handle_search)
@@ -100,9 +101,31 @@ class App(ctk.CTk):
 
     def _initial_scan(self):
         self.update_status("Loading installed apps...")
-        # This triggers a background scan in backends
-        self.pkg_manager.refresh_installed_cache()
-        self.update_status("Ready")
+        self.package_list.clear()
+        
+        # Determine total backends for the loading indicator
+        backends = self.pkg_manager.backends
+        self.package_list.start_loading(len(backends))
+
+        for backend in backends:
+            threading.Thread(
+                target=self._run_backend_installed_scan,
+                args=(backend,),
+                daemon=True
+            ).start()
+
+    def _run_backend_installed_scan(self, backend):
+        try:
+            results = backend.get_installed()
+            self.after(0, self._append_installed_results, results)
+        except Exception as e:
+            print(f"Error loading installed apps from {backend.BACKEND_ID}: {e}")
+        finally:
+            self.after(0, self.package_list.stop_one_backend)
+
+    def _append_installed_results(self, results):
+        self.package_list.add_packages(results)
+        self.update_status(f"Loaded {len(self.package_list.item_frames)} installed apps")
 
     def update_status(self, text):
         self.status_label.configure(text=text)
@@ -114,7 +137,6 @@ class App(ctk.CTk):
         self.package_list.start_loading(len(self.pkg_manager.backends))
         self.update_status(f"Searching for '{query}'...")
 
-        # Run search in a separate thread per backend for max performance
         for backend in self.pkg_manager.backends:
             threading.Thread(
                 target=self._run_backend_search, 
@@ -125,7 +147,6 @@ class App(ctk.CTk):
     def _run_backend_search(self, backend, query):
         try:
             results = backend.search(query)
-            # Switch back to main thread for UI updates
             self.after(0, self._append_search_results, results)
         except Exception as e:
             print(f"Error searching backend {backend.BACKEND_ID}: {e}")
@@ -166,7 +187,7 @@ class App(ctk.CTk):
 
     def _do_install(self, pkg):
         backend = self.pkg_manager.get_backend(pkg['backend'])
-        success = self.installer.install(pkg, backend)
+        success = self.installer.install(pkg, backend, on_finish=self._initial_scan)
         if success:
             pkg["is_installed"] = True
             self.after(0, lambda: self.update_status(f"Successfully installed {pkg['Name']}"))
@@ -184,7 +205,7 @@ class App(ctk.CTk):
 
     def _do_remove(self, pkg):
         backend = self.pkg_manager.get_backend(pkg['backend'])
-        success = self.installer.remove(pkg, backend)
+        success = self.installer.remove(pkg, backend, on_finish=self._initial_scan)
         if success:
             pkg["is_installed"] = False
             self.after(0, lambda: self.update_status(f"Successfully removed {pkg['Name']}"))
@@ -196,50 +217,29 @@ class App(ctk.CTk):
         self.action_runner.run(exec_cmd)
 
     def update_all(self):
-        self.update_status("Updating all packages...")
-        # Implement bulk update logic
+        self.action_runner.update_system(on_finish=self._initial_scan)
 
     def handle_build_local(self):
-        """Allows user to select a PKGBUILD or local folder to build."""
         path = utils.get_native_file_picker("Select PKGBUILD or Project Folder")
         if path:
-            self.update_status(f"Building from {os.path.basename(path)}...")
-            # Trigger build logic
+            self.action_runner.build_local_package(path, on_finish=self._initial_scan)
 
 
 def main():
     try:
-        # --- Super-Smooth Rendering Fix ---
         scaling = utils.get_scaling_factor()
-        
-        # Aggressive scaling for HiDPI
-        if scaling < 1.1:
-            scaling = 1.0
-        elif scaling < 1.4:
-            scaling = 1.25
-        else:
-            scaling = 1.5
-            
         ctk.set_widget_scaling(scaling)
         ctk.set_window_scaling(scaling)
-        
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-        
         app = App()
-        
-        # Force the underlying Tk engine to use high-quality scaling
         try:
-            # 1.333 is the ratio between DPI and Tk points (96/72)
             app.tk.call('tk', 'scaling', scaling * 1.333)
         except: pass
-
         app.mainloop()
     except Exception as e:
         import tkinter.messagebox as mb
         mb.showerror("Startup Error", f"The application failed to start:\n\n{e}")
-        import traceback
-        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

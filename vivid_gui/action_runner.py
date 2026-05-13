@@ -106,7 +106,7 @@ class ActionRunner:
             cmd = [file_path]
             self._run_in_terminal(cmd, on_finish)
 
-    def run_app(self, exec_cmd):
+    def run(self, exec_cmd):
         """Launch a desktop application in the background."""
         try:
             if platform.system() == "Windows":
@@ -125,5 +125,5 @@ class ActionRunner:
                 cmd = shlex.split(exec_cmd)
                 subprocess.Popen(cmd, start_new_session=True)
         except Exception as e:
-            print(f"[action_runner] run_app error: {e}")
+            print(f"[action_runner] run error: {e}")
             utils.show_error("Launch Error", f"Failed to launch application:\n{e}")

@@ -1,76 +1,142 @@
+"""
+installer.py — Auto-detection and installation of missing package manager backends.
+"""
+import shutil
+import subprocess
+import os
+import stat
+import shlex
+import threading
+import time
+import platform
+import sys
+from vivid_gui import utils
+
+# Describes how to install each optional backend
+INSTALLABLE_BACKENDS = {
+    "flatpak": {
+        "display_name": "Flatpak",
+        "binary": "flatpak",
+        "install_cmd": ["sudo", "pacman", "-S", "--noconfirm", "flatpak"],
+        "post_install": [],
+        "description": "Universal Linux app sandboxing platform",
+        "os": "Linux",
+    },
+    "snap": {
+        "display_name": "Snap",
+        "binary": "snap",
+        "install_cmd": ["yay", "-S", "--noconfirm", "snapd"],
+        "post_install": [
+            ["sudo", "systemctl", "enable", "--now", "snapd.socket"],
+            ["sudo", "ln", "-sf", "/var/lib/snapd/snap", "/snap"],
+        ],
+        "description": "Snap package manager by Canonical",
+        "os": "Linux",
+    },
+    "scoop": {
+        "display_name": "Scoop",
+        "binary": "scoop",
+        "install_cmd": ["powershell", "-NoExit", "-ExecutionPolicy", "RemoteSigned", "-Command", "Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression"],
+        "post_install": [],
+        "description": "A command-line installer for Windows (User-level)",
+        "os": "Windows",
+    },
+    "choco": {
+        "display_name": "Chocolatey",
+        "binary": "choco",
+        "install_cmd": ["powershell", "-NoProfile", "-Command", "Start-Process powershell -Wait -Verb RunAs -ArgumentList '-NoExit', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'iex ((New-Object System.Net.WebClient).DownloadString(''https://community.chocolatey.org/install.ps1''))'"],
+        "post_install": [],
+        "description": "The Package Manager for Windows (Requires Admin)",
+        "os": "Windows",
+    },
+    "brew": {
+        "display_name": "Homebrew",
+        "binary": "brew",
+        "install_cmd": ["bash", "-c", 'bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
+        "post_install": [],
+        "description": "The Missing Package Manager for macOS (and Linux)",
+        "os": ["Darwin", "Linux"],
+    },
+    "nix": {
+        "display_name": "Nix",
+        "binary": "nix-env",
+        "install_cmd": ["sh", "-c", "curl -L https://nixos.org/nix/install | sh -s -- --daemon"],
+        "post_install": [],
+        "description": "Powerful package manager for Linux and macOS",
+        "os": ["Darwin", "Linux"],
+    },
+}
+
 class PackageInstaller:
     def get_missing_backends(self):
-        """Return a list of backend IDs that are installable but not currently available."""
-        import platform
-        import shutil
         system_os = platform.system()
         missing = []
-        # Accessing the INSTALLABLE_BACKENDS map from the module scope
-        from vivid_gui.installer import INSTALLABLE_BACKENDS
         for backend_id, info in INSTALLABLE_BACKENDS.items():
             os_req = info.get("os", "Linux")
-            if isinstance(os_req, str):
-                os_req = [os_req]
-                
-            if system_os not in os_req and "Universal" not in os_req:
+            if system_os not in (os_req if isinstance(os_req, list) else [os_req]) and "Universal" not in os_req:
                 continue
-                
             if shutil.which(info["binary"]) is None:
                 missing.append(backend_id)
         return missing
 
-    def install(self, pkg, backend):
+    def install(self, pkg, backend_obj, terminal="alacritty", on_finish=None):
+        backend_id = pkg.get("backend")
+        pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
+        cmd = self._get_install_cmd(backend_id, pkg_id)
+        if not cmd: return False
+        self._run_in_terminal(cmd, terminal, on_finish)
         return True
 
-    def remove(self, pkg, backend):
+    def remove(self, pkg, backend_obj, terminal="alacritty", on_finish=None):
+        backend_id = pkg.get("backend")
+        pkg_id = pkg.get("PackageName") or pkg.get("ID") or pkg.get("Name")
+        cmd = self._get_remove_cmd(backend_id, pkg_id)
+        if not cmd: return False
+        self._run_in_terminal(cmd, terminal, on_finish)
         return True
 
-    def install_backend(self, backend_id, terminal="alacritty", on_finish=None):
-        import threading
-        import time
-        import subprocess
-        from vivid_gui.installer import INSTALLABLE_BACKENDS
-        info = INSTALLABLE_BACKENDS.get(backend_id)
-        if not info: return
+    def _get_install_cmd(self, backend_id, pkg_id):
+        if backend_id == "pacman": return ["sudo", "pacman", "-S", "--needed", pkg_id]
+        if backend_id == "apt": return ["sudo", "apt", "install", "-y", pkg_id]
+        if backend_id == "dnf": return ["sudo", "dnf", "install", "-y", pkg_id]
+        if backend_id == "zypper": return ["sudo", "zypper", "install", "-y", pkg_id]
+        if backend_id == "winget": return ["winget", "install", "-e", "--id", pkg_id]
+        if backend_id == "flatpak": return ["flatpak", "install", "flathub", "-y", pkg_id]
+        if backend_id == "pip": return [sys.executable, "-m", "pip", "install", pkg_id]
+        return None
 
+    def _get_remove_cmd(self, backend_id, pkg_id):
+        if backend_id == "pacman": return ["sudo", "pacman", "-Rns", pkg_id]
+        if backend_id == "apt": return ["sudo", "apt", "remove", "-y", pkg_id]
+        if backend_id == "dnf": return ["sudo", "dnf", "remove", "-y", pkg_id]
+        if backend_id == "winget": return ["winget", "uninstall", "-e", "--id", pkg_id]
+        if backend_id == "flatpak": return ["flatpak", "uninstall", "-y", pkg_id]
+        return None
+
+    def _run_in_terminal(self, cmd, terminal, on_finish):
         def worker():
             try:
-                import platform
-                cmd = info["install_cmd"]
-                is_gui_or_echo = cmd[0] in ["open", "xdg-open", "echo"]
-                
                 if platform.system() == "Windows":
-                    if is_gui_or_echo:
-                        proc = subprocess.Popen(cmd, shell=True)
-                    else:
-                        proc = subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                    full_cmd = f"start cmd /k \"{' '.join(cmd)}\""
+                    subprocess.Popen(full_cmd, shell=True).wait()
                 else:
-                    if is_gui_or_echo:
-                        if cmd[0] == "open" and platform.system() == "Linux":
-                            cmd[0] = "xdg-open"
-                        proc = subprocess.Popen(cmd)
-                    else:
-                        import os
-                        import stat
-                        import shlex
-                        current_dir = os.path.dirname(os.path.abspath(__file__))
-                        scratch_dir = os.path.join(os.path.dirname(current_dir), "scratch")
-                        os.makedirs(scratch_dir, exist_ok=True)
-                        script_path = os.path.join(scratch_dir, f"install_{backend_id}.sh")
-                        
-                        safe_cmd = shlex.join(cmd)
-                        script_content = f"#!/bin/bash\necho 'Target: {info['display_name']}'\n{safe_cmd}\nsleep 2\n"
-                        with open(script_path, "w") as f: f.write(script_content)
-                        os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IEXEC)
-                        proc = subprocess.Popen([terminal, "-e", script_path])
-                
-                proc.wait()
-                for cmd in info["post_install"]:
-                    try: subprocess.run(cmd, check=False)
-                    except: pass
-                time.sleep(1.0)
+                    cmd_str = " ".join(cmd)
+                    bash_cmd = f"{cmd_str} || (echo; echo 'Press Enter to close...'; read)"
+                    subprocess.Popen([terminal, "-e", "bash", "-c", bash_cmd]).wait()
                 if on_finish: on_finish()
-            except Exception as e:
-                print(f"[installer] install error: {e}")
+            except Exception as e: print(f"[installer] error: {e}")
+        threading.Thread(target=worker, daemon=True).start()
 
+    def install_backend(self, backend_id, terminal="alacritty", on_finish=None):
+        info = INSTALLABLE_BACKENDS.get(backend_id)
+        if not info: return
+        def worker():
+            try:
+                cmd = info["install_cmd"]
+                self._run_in_terminal(cmd, terminal, None)
+                for post in info["post_install"]:
+                    try: subprocess.run(post, check=False)
+                    except: pass
+                if on_finish: on_finish()
+            except: pass
         threading.Thread(target=worker, daemon=True).start()
