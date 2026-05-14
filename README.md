@@ -70,28 +70,36 @@ Download the professional bundle for your platform from the **[Latest Release](h
 
 ---
 
-### 🐍 Universal Portable (For Developers)
-If you already have Python 3.10+ installed and prefer a lightweight script:
+### 🐍 Universal Portable (Standalone)
+If you already have Python 3.10+ installed and prefer a lightweight, single-file script:
 
 1.  **Download** `VividPM_Universal_v2.0.0.pyw` from the **[Releases](https://github.com/smallmonk67-gif/VividPM/releases)**.
 2.  **Run**:
     -   **Windows/macOS**: Double-click the file.
-    -   -   **Linux**: `./run.sh` or `python3 releases/VividPM_Universal_v2.0.0.pyw`.
+    -   **Linux**: `python3 VividPM_Universal_v2.0.0.pyw`
+
+> [!TIP]
+> This is a **ZipApp** bundle. On first run, it will automatically setup a dedicated virtual environment in your home directory to handle dependencies safely.
 
 ---
 
-### 🔧 Manual Build / Development
-1.  **Clone the Repo**:
-    ```bash
-    git clone https://github.com/smallmonk67-gif/VividPM.git
-    cd VividPM
-    ```
+### 🔧 Manual Build / Development (Source Code)
+If you wish to modify the code or contribute:
+
+1.  **Download Source**:
+    -   **Option A**: Clone the Repo:
+        ```bash
+        git clone https://github.com/smallmonk67-gif/VividPM.git
+        cd VividPM
+        ```
+    -   **Option B**: Download the **[Source Code (.zip)](https://github.com/smallmonk67-gif/VividPM/archive/refs/heads/main.zip)** or **[.tar.gz](https://github.com/smallmonk67-gif/VividPM/archive/refs/heads/main.tar.gz)**.
 2.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
 3.  **Run**:
-    -   **Native Shell**: `./run.sh`
+    -   **Linux/macOS**: `./run.sh`
+    -   **Windows**: `run.bat`
 
 ---
 
