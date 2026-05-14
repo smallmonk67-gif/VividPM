@@ -4,10 +4,11 @@ name: macOS-Only Release Build
 # Windows and Linux builds are handled locally or via separate processes.
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-macos:
