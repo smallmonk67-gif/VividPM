@@ -46,10 +46,10 @@ jobs:
       run: |
         cd dist
         # Zip the .app bundle with the standardized naming scheme
-        zip -r ../VividPM_MacOS_v2.0.0.zip "VividPM.app"
+        zip -r ../VividPM_macOS_arm64_v2.0.0.zip "VividPM.app"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: VividPM-macOS
-        path: VividPM_MacOS_v2.0.0.zip
+        path: VividPM_macOS_arm64_v2.0.0.zip

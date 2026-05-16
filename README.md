@@ -66,7 +66,7 @@ Download the professional bundle for your platform from the **[Latest Release](h
 
 *   **🪟 Windows**: Download `VividPM_Windows_x86_64_v2.0.0.exe`. Double-click to launch.
 *   **🐧 Linux**: Download `VividPM_Linux_x86_64_v2.0.0.Appimage`. Make it executable and run.
-*   **🍏 macOS**: Download `VividPM_MacOS_v2.0.0.zip`, extract it, and move `VividPM.app` to your Applications folder.
+*   **🍏 macOS**: Download `VividPM_macOS_arm64_v2.0.0.zip`, extract it, and move `VividPM.app` to your Applications folder.
 
 ---
 
