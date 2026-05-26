@@ -64,19 +64,19 @@ VividPM is now available as a **Native, Zero-Config application** for all major 
 ### 🌟 Native Binaries (Recommended)
 Download the professional bundle for your platform from the **[Latest Release](https://github.com/smallmonk67-gif/VividPM/releases/latest)**:
 
-*   **🪟 Windows**: Download `VividPM_Windows_x86_64_v2.0.0.exe`. Double-click to launch.
-*   **🐧 Linux**: Download `VividPM_Linux_x86_64_v2.0.0.Appimage`. Make it executable and run.
-*   **🍏 macOS**: Download `VividPM_macOS_arm64_v2.0.0.zip`, extract it, and move `VividPM.app` to your Applications folder.
+*   **🪟 Windows**: Download `VividPM_Windows_x86_64_v2.1.0.exe`. Double-click to launch.
+*   **🐧 Linux**: Download `VividPM_Linux_x86_64_v2.1.0.Appimage`. Make it executable and run.
+*   **🍏 macOS**: Download `VividPM_macOS_arm64_v2.1.0.zip`, extract it, and move `VividPM.app` to your Applications folder.
 
 ---
 
 ### 🐍 Universal Portable (Standalone)
 If you already have Python 3.10+ installed and prefer a lightweight, single-file script:
 
-1.  **Download** `VividPM_Universal_v2.0.0.pyw` from the **[Releases](https://github.com/smallmonk67-gif/VividPM/releases)**.
+1.  **Download** `VividPM_Universal_v2.1.0.pyw` from the **[Releases](https://github.com/smallmonk67-gif/VividPM/releases)**.
 2.  **Run**:
     -   **Windows/macOS**: Double-click the file.
-    -   **Linux**: `python3 VividPM_Universal_v2.0.0.pyw`
+    -   **Linux**: `python3 VividPM_Universal_v2.1.0.pyw`
 
 > [!TIP]
 > This is a **ZipApp** bundle. On first run, it will automatically setup a dedicated virtual environment in your home directory to handle dependencies safely.
