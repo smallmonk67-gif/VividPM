@@ -25,7 +25,7 @@ INSTALLABLE_BACKENDS = {
     "snap": {
         "display_name": "Snap",
         "binary": "snap",
-        "install_cmd": ["YAY_OR_PARU", "-S", "--noconfirm", "snapd"],
+        "install_cmd": ["_AUR_HELPER_", "-S", "--noconfirm", "snapd"],
         "post_install": [
             ["sudo", "systemctl", "enable", "--now", "snapd.socket"],
             ["sudo", "ln", "-sf", "/var/lib/snapd/snap", "/snap"],
@@ -161,20 +161,30 @@ class PackageInstaller:
         if not info: return
         def worker():
             try:
-                cmd = info["install_cmd"]
-                # Resolve YAY_OR_PARU placeholder dynamically
-                if cmd and cmd[0] == "YAY_OR_PARU":
+                # Copy the command list to avoid mutating the shared dict
+                cmd = list(info["install_cmd"])
+                # Resolve _AUR_HELPER_ placeholder dynamically
+                if cmd and cmd[0] == "_AUR_HELPER_":
                     helper = "yay" if shutil.which("yay") else ("paru" if shutil.which("paru") else None)
                     if helper:
                         cmd[0] = helper
                     else:
                         print("[installer] No AUR helper found to install backend")
                         return
-                
-                self._run_in_terminal(cmd, terminal, None)
-                for post in info["post_install"]:
-                    try: subprocess.run(post, check=False)
-                    except: pass
-                if on_finish: on_finish()
-            except: pass
+
+                # Chain post_install commands into the same terminal session
+                # so they run AFTER the main install finishes.
+                post_cmds = info.get("post_install", [])
+                if post_cmds:
+                    # Build a single bash command that chains all steps
+                    all_cmds = [" ".join(shlex.quote(c) for c in cmd)]
+                    for post in post_cmds:
+                        all_cmds.append(" ".join(shlex.quote(c) for c in post))
+                    chained = " && ".join(all_cmds)
+                    final_cmd = ["bash", "-c", chained]
+                    self._run_in_terminal(final_cmd, terminal, on_finish)
+                else:
+                    self._run_in_terminal(cmd, terminal, on_finish)
+            except Exception as e:
+                print(f"[installer] install_backend error: {e}")
         threading.Thread(target=worker, daemon=True).start()

@@ -34,7 +34,9 @@ jobs:
         # We also grab the CTK path dynamically
         CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
         
-        pyinstaller --noconfirm --onefile --windowed \
+        # --onedir + --windowed produces a proper .app bundle on macOS
+        # (--onefile would produce a single binary, not a .app)
+        pyinstaller --noconfirm --onedir --windowed \
           --icon "icon.png" \
           --name "VividPM" \
           --add-data "${CTK_PATH}:customtkinter/" \
