@@ -13,7 +13,11 @@ import os
 from vivid_gui import utils
 
 TERMINAL = "alacritty"
-AUR_HELPER = "yay"
+
+def get_aur_helper():
+    if shutil.which("yay"): return "yay"
+    if shutil.which("paru"): return "paru"
+    return "pacman" # Fallback for base updates if no helper
 
 class ActionRunner:
     def __init__(self):
@@ -53,8 +57,12 @@ class ActionRunner:
             if shutil.which("scoop"):
                 cmds.append(["scoop", "update", "*"])
         else:
-            if shutil.which(AUR_HELPER):
-                cmds.append([TERMINAL, "-e", AUR_HELPER, "-Syu"])
+            helper = get_aur_helper()
+            if helper == "pacman":
+                cmds.append([TERMINAL, "-e", "sudo", "pacman", "-Syu"])
+            else:
+                cmds.append([TERMINAL, "-e", helper, "-Syu"])
+                
             if shutil.which("flatpak"):
                 cmds.append([TERMINAL, "-e", "flatpak", "update"])
 

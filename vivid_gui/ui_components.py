@@ -5,6 +5,7 @@ from vivid_gui import icon_resolver
 # Premium color palette
 BACKEND_COLORS = {
     "pacman":  "#0099ff",  # Brighter Arch blue
+    "aur":     "#209fb5",  # Teal/Blue for AUR
     "flatpak": "#4180d4",  # Deep Flatpak blue
     "snap":    "#e95420",  # Vibrant Snap orange
     "pip":     "#3775a9",  # Python blue
@@ -32,6 +33,7 @@ MODERN_FONT = ("Inter", "Roboto", "Segoe UI", "Ubuntu", "Cantarell", "sans-serif
 
 BACKEND_LABELS = {
     "pacman":  "pacman",
+    "aur":     "AUR",
     "flatpak": "Flatpak",
     "snap":    "Snap",
     "pip":     "pip",
@@ -81,6 +83,18 @@ class BackendFilterBar(ctk.CTkFrame):
         label.pack(side="left", padx=(8, 4))
         all_btn = ctk.CTkButton(self, text="All", width=60, height=26, fg_color=("gray70", "gray30"), command=self._select_all)
         all_btn.pack(side="left", padx=2)
+        for backend in backends:
+            bid = backend.BACKEND_ID
+            color = BACKEND_COLORS.get(bid, "gray")
+            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
+            btn.pack(side="left", padx=2)
+            self._buttons[bid] = btn
+
+    def rebuild(self, backends):
+        for btn in self._buttons.values():
+            btn.destroy()
+        self._buttons.clear()
+        self.active_backends = set(b.BACKEND_ID for b in backends)
         for backend in backends:
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")

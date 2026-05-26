@@ -33,6 +33,7 @@ class App(ctk.CTk):
         
         # Start background scan for installed apps
         self.after(500, self._initial_scan)
+        self.after(1000, self._check_missing_backends)
 
     def _setup_ui(self):
         # Left Panel: Sidebar + Search
@@ -223,6 +224,101 @@ class App(ctk.CTk):
         path = utils.get_native_file_picker("Select PKGBUILD or Project Folder")
         if path:
             self.action_runner.build_local_package(path, on_finish=self._initial_scan)
+
+    def _check_missing_backends(self):
+        """Show a dialog if optional package managers are not installed."""
+        missing = self.installer.get_missing_backends()
+        if not missing:
+            return
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Optional Package Managers")
+        dialog.geometry("500x380")
+        dialog.resizable(False, False)
+        dialog.grab_set()  # Modal
+
+        ctk.CTkLabel(
+            dialog,
+            text="Optional Package Managers",
+            font=ctk.CTkFont(size=16, weight="bold"),
+        ).pack(pady=(20, 4))
+
+        ctk.CTkLabel(
+            dialog,
+            text="The following package managers are not installed.\nWould you like to install them?",
+            text_color="gray",
+        ).pack(pady=(0, 12))
+
+        # We'll use a scrollable frame for custom backends list
+        scroll_frame = ctk.CTkScrollableFrame(dialog, width=440, height=220, fg_color="transparent")
+        scroll_frame.pack(fill="both", expand=True, padx=24, pady=4)
+
+        from vivid_gui.installer import INSTALLABLE_BACKENDS
+
+        # List missing backends with descriptions
+        for bid in missing:
+            info = INSTALLABLE_BACKENDS[bid]
+            row = ctk.CTkFrame(scroll_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+            row.pack(fill="x", padx=4, pady=4)
+
+            left = ctk.CTkFrame(row, fg_color="transparent")
+            left.pack(side="left", fill="both", expand=True, padx=12, pady=8)
+
+            ctk.CTkLabel(
+                left, text=info["display_name"], font=ctk.CTkFont(weight="bold"), anchor="w"
+            ).pack(anchor="w")
+            ctk.CTkLabel(
+                left, text=info["description"], text_color="gray", anchor="w", font=ctk.CTkFont(size=11),
+                wraplength=260, justify="left"
+            ).pack(anchor="w")
+
+            btn = ctk.CTkButton(
+                row, text="Install", width=80,
+                fg_color="green", hover_color="darkgreen"
+            )
+            btn.configure(command=lambda b=bid, d=dialog, button=btn: self._install_backend(b, d, button))
+            btn.pack(side="right", padx=12, pady=8)
+
+        ctk.CTkButton(
+            dialog, text="Skip", fg_color="transparent",
+            border_width=1, border_color="gray",
+            command=dialog.destroy
+        ).pack(pady=(12, 20))
+
+    def _install_backend(self, backend_id, dialog, button):
+        """Start installing a backend and update UI."""
+        button.configure(state="disabled", text="Installing...", fg_color="gray")
+
+        from vivid_gui.installer import INSTALLABLE_BACKENDS
+        info = INSTALLABLE_BACKENDS[backend_id]
+        self.update_status(f"Installing {info['display_name']}...")
+
+        def on_done():
+            # Trigger UI update on the main thread
+            self.after(0, self._on_backend_installed, backend_id, button)
+
+        self.installer.install_backend(backend_id, on_finish=on_done)
+
+    def _on_backend_installed(self, backend_id, button):
+        """Rebuild the filter bar and update the button state. Runs on main thread."""
+        self.pkg_manager.reload_backends()
+        new_backends = self.pkg_manager.backends
+        
+        # Check if backend was actually installed (binary found)
+        is_installed = any(b.BACKEND_ID == backend_id for b in new_backends)
+        
+        if button.winfo_exists():
+            if is_installed:
+                button.configure(text="Installed", fg_color="gray", state="disabled")
+            else:
+                button.configure(text="Retry", fg_color="red", state="normal")
+        
+        # Rebuild filter bar to include the new backend
+        if hasattr(self, "filter_bar") and self.filter_bar.winfo_exists():
+            self.filter_bar.rebuild(new_backends)
+        
+        # Refresh the package list
+        self._initial_scan()
 
 
 def main():

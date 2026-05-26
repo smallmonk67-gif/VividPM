@@ -7,7 +7,7 @@ import shutil
 import platform
 
 from vivid_gui.backends import (
-    pacman_backend, flatpak_backend, snap_backend, pip_backend,
+    pacman_backend, aur_backend, flatpak_backend, snap_backend, pip_backend,
     apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
@@ -19,7 +19,7 @@ from vivid_gui import utils
 
 # Ordered list of all supported backends
 _ALL_BACKENDS = [
-    pacman_backend, apt_backend, dnf_backend, zypper_backend,
+    pacman_backend, aur_backend, apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
     windows_native_backend,
@@ -32,6 +32,7 @@ _ALL_BACKENDS = [
 # None means the backend works on any OS (cross-distro tools).
 _BACKEND_COMPAT = {
     "pacman":  {"arch", "manjaro", "endeavouros", "garuda", "arcolinux", "artix"},
+    "aur":     {"arch", "manjaro", "endeavouros", "garuda", "arcolinux", "artix"},
     "apt":     {"debian", "ubuntu", "linuxmint", "mint", "pop", "elementary",
                 "zorin", "kali", "raspbian", "armbian"},
     "dnf":     {"fedora", "rhel", "centos", "almalinux", "rocky", "nobara",

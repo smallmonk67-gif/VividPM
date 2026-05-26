@@ -14,7 +14,7 @@ CACHE_FILE = "/tmp/vividpm_apps_cache.json"
 AUR_RPC_BASE_URL = "https://aur.archlinux.org/rpc/v5"
 
 BACKEND_ID = "pacman"
-DISPLAY_NAME = "pacman / AUR"
+DISPLAY_NAME = "pacman"
 COLOR = "#1793d1"  # Arch blue
 
 
@@ -93,46 +93,21 @@ def search(query: str):
     except Exception as e:
         print(f"[pacman] repo search error: {e}")
 
-    # 2. Search AUR (RPC)
-    try:
-        url = f"{AUR_RPC_BASE_URL}/search/{urllib.parse.quote(query)}"
-        with urllib.request.urlopen(url, timeout=8) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            results = data.get("results", [])
-            results.sort(key=lambda x: -x.get("Popularity", 0))
-            
-            seen_names = {pkg["Name"] for pkg in out}
-            for r in results:
-                name = r.get("Name", "")
-                if name in seen_names: continue # Avoid duplicates if in both
-                
-                out.append({
-                    "Name": name,
-                    "ID": name,
-                    "Version": r.get("Version", ""),
-                    "Description": r.get("Description", ""),
-                    "is_installed": name in installed,
-                    "is_app": False,
-                    "Exec": "",
-                    "backend": BACKEND_ID,
-                    "PackageName": name,
-                    "NumVotes": r.get("NumVotes", 0),
-                    "Maintainer": r.get("Maintainer", "Orphan"),
-                    "LastModified": r.get("LastModified"),
-                    "Repository": "aur",
-                })
-    except Exception as e:
-        print(f"[pacman] aur search error: {e}")
-        
     return out
 
 
 def get_installed():
-    """Return installed GUI apps parsed from .desktop files."""
     apps = []
     seen_names = set()
     cache = _load_cache()
     cache_updated = False
+    
+    foreign_pkgs = set()
+    try:
+        res = subprocess.run(["pacman", "-Qmq"], capture_output=True, text=True, check=True)
+        foreign_pkgs = set(res.stdout.strip().split("\n"))
+    except Exception:
+        pass
 
     dirs = ["/usr/share/applications", os.path.expanduser("~/.local/share/applications")]
     for d in dirs:
@@ -197,16 +172,19 @@ def get_installed():
                         except Exception:
                             pass
 
+                pkg_name_final = pkg_name or name
+                is_aur = pkg_name_final in foreign_pkgs
+
                 apps.append({
                     "Name": name,
-                    "ID": pkg_name or name,
+                    "ID": pkg_name_final,
                     "Version": "",
                     "Description": desc or "Installed Application",
                     "is_installed": True,
                     "is_app": True,
                     "Exec": exec_clean,
-                    "backend": BACKEND_ID,
-                    "PackageName": pkg_name or name,
+                    "backend": "aur" if is_aur else BACKEND_ID,
+                    "PackageName": pkg_name_final,
                     "Path": path,
                     "Icon": icon,
                 })
@@ -220,8 +198,8 @@ def get_installed():
     return apps
 
 
-def install(pkg_id, terminal="alacritty", helper="yay"):
-    subprocess.Popen([terminal, "-e", helper, "-S", pkg_id])
+def install(pkg_id, terminal="alacritty"):
+    subprocess.Popen([terminal, "-e", "sudo", "pacman", "-S", pkg_id])
 
 
 def remove(pkg_id, terminal="alacritty"):
@@ -229,11 +207,9 @@ def remove(pkg_id, terminal="alacritty"):
 
 
 def get_info(pkg_id):
-    """Return extended info dict from pacman -Qi or yay -Si."""
+    """Return extended info dict from pacman -Qi."""
     try:
         res = subprocess.run(["pacman", "-Qi", pkg_id], capture_output=True, text=True)
-        if res.returncode != 0:
-            res = subprocess.run(["yay", "-Si", pkg_id], capture_output=True, text=True)
         if res.returncode == 0:
             info = {}
             for line in res.stdout.split("\n"):

@@ -25,7 +25,7 @@ INSTALLABLE_BACKENDS = {
     "snap": {
         "display_name": "Snap",
         "binary": "snap",
-        "install_cmd": ["yay", "-S", "--noconfirm", "snapd"],
+        "install_cmd": ["YAY_OR_PARU", "-S", "--noconfirm", "snapd"],
         "post_install": [
             ["sudo", "systemctl", "enable", "--now", "snapd.socket"],
             ["sudo", "ln", "-sf", "/var/lib/snapd/snap", "/snap"],
@@ -65,13 +65,32 @@ INSTALLABLE_BACKENDS = {
         "description": "Powerful package manager for Linux and macOS",
         "os": ["Darwin", "Linux"],
     },
+    "yay": {
+        "display_name": "yay (AUR)",
+        "binary": "yay",
+        "install_cmd": ["bash", "-c", "sudo pacman -S --needed --noconfirm git base-devel && git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"],
+        "post_install": [],
+        "description": "Fast AUR helper written in Go",
+        "os": "Linux",
+    },
+    "paru": {
+        "display_name": "paru (AUR)",
+        "binary": "paru",
+        "install_cmd": ["bash", "-c", "sudo pacman -S --needed --noconfirm git base-devel && git clone https://aur.archlinux.org/paru-bin.git /tmp/paru-bin && cd /tmp/paru-bin && makepkg -si --noconfirm"],
+        "post_install": [],
+        "description": "Feature-rich AUR helper designed in Rust",
+        "os": "Linux",
+    },
 }
 
 class PackageInstaller:
     def get_missing_backends(self):
         system_os = platform.system()
         missing = []
+        is_arch = shutil.which("pacman") is not None
         for backend_id, info in INSTALLABLE_BACKENDS.items():
+            if backend_id in ["yay", "paru"] and not is_arch:
+                continue
             os_req = info.get("os", "Linux")
             if system_os not in (os_req if isinstance(os_req, list) else [os_req]) and "Universal" not in os_req:
                 continue
@@ -97,6 +116,11 @@ class PackageInstaller:
 
     def _get_install_cmd(self, backend_id, pkg_id):
         if backend_id == "pacman": return ["sudo", "pacman", "-S", "--needed", pkg_id]
+        if backend_id == "aur":
+            helper = "yay" if shutil.which("yay") else ("paru" if shutil.which("paru") else None)
+            if helper:
+                return [helper, "-S", "--needed", pkg_id]
+            return None
         if backend_id == "apt": return ["sudo", "apt", "install", "-y", pkg_id]
         if backend_id == "dnf": return ["sudo", "dnf", "install", "-y", pkg_id]
         if backend_id == "zypper": return ["sudo", "zypper", "install", "-y", pkg_id]
@@ -107,6 +131,11 @@ class PackageInstaller:
 
     def _get_remove_cmd(self, backend_id, pkg_id):
         if backend_id == "pacman": return ["sudo", "pacman", "-Rns", pkg_id]
+        if backend_id == "aur":
+            helper = "yay" if shutil.which("yay") else ("paru" if shutil.which("paru") else None)
+            if helper:
+                return [helper, "-Rns", pkg_id]
+            return ["sudo", "pacman", "-Rns", pkg_id]
         if backend_id == "apt": return ["sudo", "apt", "remove", "-y", pkg_id]
         if backend_id == "dnf": return ["sudo", "dnf", "remove", "-y", pkg_id]
         if backend_id == "winget": return ["winget", "uninstall", "-e", "--id", pkg_id]
@@ -133,6 +162,15 @@ class PackageInstaller:
         def worker():
             try:
                 cmd = info["install_cmd"]
+                # Resolve YAY_OR_PARU placeholder dynamically
+                if cmd and cmd[0] == "YAY_OR_PARU":
+                    helper = "yay" if shutil.which("yay") else ("paru" if shutil.which("paru") else None)
+                    if helper:
+                        cmd[0] = helper
+                    else:
+                        print("[installer] No AUR helper found to install backend")
+                        return
+                
                 self._run_in_terminal(cmd, terminal, None)
                 for post in info["post_install"]:
                     try: subprocess.run(post, check=False)
