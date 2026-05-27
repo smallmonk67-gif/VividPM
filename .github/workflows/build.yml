@@ -1,7 +1,7 @@
-name: macOS-Only Release Build
+name: Multi-Platform Release Build
 
-# This workflow is strictly and exclusively for macOS distribution.
-# Windows and Linux builds are handled locally or via separate processes.
+# This workflow builds release binaries for macOS (Intel & Apple Silicon),
+# Linux (ARM64), and Windows (ARM64) natively on GitHub-hosted runners.
 
 on:
   push:
@@ -11,9 +11,34 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
-    
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            os: macos-latest
+            artifact_name: VividPM_macOS_arm64_v2.1.0.zip
+            delimiter: ":"
+            type: macos
+          - platform: macos-x86_64
+            os: macos-13
+            artifact_name: VividPM_macOS_x86_64_v2.1.0.zip
+            delimiter: ":"
+            type: macos
+          - platform: linux-arm64
+            os: ubuntu-24.04-arm
+            artifact_name: VividPM_Linux_arm64_v2.1.0
+            delimiter: ":"
+            type: linux
+          - platform: windows-arm64
+            os: windows-11-arm
+            artifact_name: VividPM_Windows_arm64_v2.1.0.exe
+            delimiter: ";"
+            type: windows
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -28,30 +53,51 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller customtkinter Pillow darkdetect requests
 
-    - name: Build with PyInstaller
+    - name: Build macOS Application
+      if: matrix.type == 'macos'
       run: |
-        # On macOS, we use ':' as the delimiter for --add-data
-        # We also grab the CTK path dynamically
         CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
-        
-        # --onedir + --windowed produces a proper .app bundle on macOS
-        # (--onefile would produce a single binary, not a .app)
         pyinstaller --noconfirm --onedir --windowed \
           --icon "icon.png" \
           --name "VividPM" \
-          --add-data "${CTK_PATH}:customtkinter/" \
-          --add-data "icon.png:." \
-          --add-data "vivid_gui:vivid_gui" \
+          --add-data "${CTK_PATH}${matrix.delimiter}customtkinter/" \
+          --add-data "icon.png${matrix.delimiter}." \
+          --add-data "vivid_gui${matrix.delimiter}vivid_gui" \
+          "entry_point.py"
+        cd dist
+        zip -r "../${{ matrix.artifact_name }}" "VividPM.app"
+
+    - name: Build Linux Binary
+      if: matrix.type == 'linux'
+      run: |
+        CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
+        pyinstaller --noconfirm --onefile --windowed \
+          --icon "icon.png" \
+          --name "VividPM_Linux_arm64_v2.1.0" \
+          --add-data "${CTK_PATH}${matrix.delimiter}customtkinter/" \
+          --add-data "icon.png${matrix.delimiter}." \
+          --add-data "vivid_gui${matrix.delimiter}vivid_gui" \
           "entry_point.py"
 
-    - name: Package App
+    - name: Build Windows Binary
+      if: matrix.type == 'windows'
+      shell: bash
       run: |
-        cd dist
-        # Zip the .app bundle with the standardized naming scheme
-        zip -r ../VividPM_macOS_arm64_v2.1.0.zip "VividPM.app"
+        CTK_PATH=$(python -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
+        pyinstaller --noconfirm --onefile --windowed \
+          --icon "icon.ico" \
+          --name "VividPM_Windows_arm64_v2.1.0" \
+          --add-data "${CTK_PATH}${matrix.delimiter}customtkinter/" \
+          --add-data "icon.png${matrix.delimiter}." \
+          --add-data "vivid_gui${matrix.delimiter}vivid_gui" \
+          "entry_point.py"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VividPM-macOS
-        path: VividPM_macOS_arm64_v2.1.0.zip
+        name: VividPM-${{ matrix.platform }}
+        path: |
+          ${{ matrix.artifact_name }}
+          dist/VividPM_Linux_arm64_v2.1.0
+          dist/VividPM_Windows_arm64_v2.1.0.exe
+        if-no-files-found: ignore
