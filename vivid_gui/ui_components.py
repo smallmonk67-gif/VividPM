@@ -446,3 +446,59 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         if self.current_pkg: self.on_remove(self.current_pkg)
     def handle_run(self):
         if self.current_pkg and self.on_run: self.on_run(self.current_pkg.get("Exec") or self.current_pkg.get("Name"))
+
+class SettingsWindow(ctk.CTkToplevel):
+    def __init__(self, master, config_manager, apply_callback, **kwargs):
+        super().__init__(master, **kwargs)
+        self.config_manager = config_manager
+        self.apply_callback = apply_callback
+        
+        self.title("Settings")
+        self.geometry("400x350")
+        self.resizable(False, False)
+        
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Header
+        self.header = ctk.CTkLabel(self, text="Preferences", font=ctk.CTkFont(family=MODERN_FONT[0], size=20, weight="bold"))
+        self.header.grid(row=0, column=0, pady=(20, 10))
+        
+        # Theme Setting
+        self.theme_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.theme_frame.grid(row=1, column=0, sticky="ew", padx=30, pady=10)
+        
+        self.theme_label = ctk.CTkLabel(self.theme_frame, text="Appearance Theme", font=ctk.CTkFont(weight="bold"))
+        self.theme_label.pack(anchor="w", pady=(0, 5))
+        
+        self.theme_var = ctk.StringVar(value=self.config_manager.get("theme", "System"))
+        self.theme_seg = ctk.CTkSegmentedButton(self.theme_frame, values=["System", "Light", "Dark"], variable=self.theme_var)
+        self.theme_seg.pack(fill="x")
+        
+        # Accent Color Setting
+        self.accent_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.accent_frame.grid(row=2, column=0, sticky="ew", padx=30, pady=10)
+        
+        self.accent_label = ctk.CTkLabel(self.accent_frame, text="Accent Color", font=ctk.CTkFont(weight="bold"))
+        self.accent_label.pack(anchor="w", pady=(0, 5))
+        
+        self.accent_var = ctk.StringVar(value=self.config_manager.get("accent_color", "blue"))
+        self.accent_seg = ctk.CTkSegmentedButton(self.accent_frame, values=["blue", "green", "dark-blue"], variable=self.accent_var)
+        self.accent_seg.pack(fill="x")
+        
+        # Apply Button
+        self.apply_btn = ctk.CTkButton(self, text="Apply & Save", command=self.save_and_apply, height=40, font=ctk.CTkFont(weight="bold"))
+        self.apply_btn.grid(row=3, column=0, pady=(30, 10))
+
+        # Make it modal
+        self.transient(master)
+        self.grab_set()
+
+    def save_and_apply(self):
+        new_theme = self.theme_var.get()
+        new_accent = self.accent_var.get()
+        
+        self.config_manager.set("theme", new_theme)
+        self.config_manager.set("accent_color", new_accent)
+        
+        self.apply_callback(new_theme, new_accent)
+        self.destroy()

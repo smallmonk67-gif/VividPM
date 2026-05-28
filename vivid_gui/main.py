@@ -1,8 +1,9 @@
 import customtkinter as ctk
 import tkinter as tk
 from vivid_gui.pkg_manager import PackageManager
-from vivid_gui.ui_components import SearchBar, BackendFilterBar, PackageListFrame, PackageDetailFrame
+from vivid_gui.ui_components import SearchBar, BackendFilterBar, PackageListFrame, PackageDetailFrame, SettingsWindow
 from vivid_gui.installer import PackageInstaller
+from vivid_gui.config_manager import config_manager
 from vivid_gui.action_runner import ActionRunner
 import threading
 import os
@@ -19,6 +20,9 @@ class App(ctk.CTk):
 
         self.title(f"Vivid Package Manager v{VERSION}")
         self.geometry("1100x700")
+        
+        # Apply theme from configuration
+        self._apply_theme_config(config_manager.get("theme", "System"), config_manager.get("accent_color", "blue"))
         
         # Ensure the app starts with a modern aesthetic
         self.grid_columnconfigure(0, weight=1)
@@ -114,6 +118,20 @@ class App(ctk.CTk):
             command=self.handle_build_local
         )
         self.build_local_btn.pack(side="right", padx=5)
+        
+        self.settings_btn = ctk.CTkButton(
+            self.top_bar, text="⚙️ Settings", width=40,
+            fg_color="transparent", hover_color=("gray85", "#2e2e2e"),
+            text_color=("black", "white"), command=self.open_settings
+        )
+        self.settings_btn.pack(side="right", padx=5)
+
+    def _apply_theme_config(self, theme, accent):
+        ctk.set_appearance_mode(theme)
+        ctk.set_default_color_theme(accent)
+        
+    def open_settings(self):
+        SettingsWindow(self, config_manager, self._apply_theme_config)
 
     def _initial_scan(self):
         self.update_status("Loading installed apps...")
