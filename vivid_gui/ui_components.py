@@ -92,6 +92,8 @@ class BackendFilterBar(ctk.CTkFrame):
         self.bind("<Configure>", self._on_configure)
 
     def _on_configure(self, event):
+        if event.widget != self:
+            return
         width = event.width
         if getattr(self, "_last_width", 0) == width:
             return
