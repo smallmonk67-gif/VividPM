@@ -89,12 +89,9 @@ class BackendFilterBar(ctk.CTkFrame):
             btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, corner_radius=13, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             self._buttons[bid] = btn
             
-        self.arrange_buttons()
         self.bind("<Configure>", self._on_configure)
 
     def _on_configure(self, event):
-        if str(event.widget) != str(self):
-            return
         width = event.width
         if getattr(self, "_last_width", 0) == width:
             return
@@ -178,6 +175,7 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         self._active_backends = None
         self._spinner_idx = 0
         self._spinner_job = None
+        self._render_job = None
         self._loading_backends = 0
         self._spinner_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._spinner_label = ctk.CTkLabel(self._spinner_frame, text="", font=ctk.CTkFont(family=MODERN_FONT[0], size=16))
@@ -207,17 +205,46 @@ class PackageListFrame(ctk.CTkScrollableFrame):
         self._spinner_frame.pack_forget()
 
     def add_packages(self, packages, from_filter=False):
-        if not from_filter: self._all_packages.extend(packages)
-        if self._spinner_job is not None: self._spinner_frame.pack_forget()
+        if not from_filter: 
+            self._all_packages.extend(packages)
+        if self._spinner_job is not None: 
+            self._spinner_frame.pack_forget()
+        
         to_add = packages
         if self._active_backends is not None:
             to_add = [p for p in to_add if p.get("backend") in self._active_backends]
-        for pkg in to_add[:100]:
+            
+        # Cancel any active render jobs to avoid rendering overlapping/old search results
+        if self._render_job is not None:
+            self.after_cancel(self._render_job)
+            self._render_job = None
+
+        # Increase visible limit to 200 since incremental rendering makes it completely lag-free!
+        self._render_chunks(to_add[:200], 0, chunk_size=8)
+
+    def _render_chunks(self, packages, start_idx, chunk_size):
+        self._render_job = None
+        if start_idx >= len(packages):
+            if self._spinner_job is not None: 
+                self._spinner_frame.pack(fill="x", padx=10, pady=6)
+            return
+
+        end_idx = min(start_idx + chunk_size, len(packages))
+        if self._spinner_job is not None: 
+            self._spinner_frame.pack_forget()
+
+        for i in range(start_idx, end_idx):
+            pkg = packages[i]
             item = PackageListItem(self, pkg, self.on_item_click)
             item.pack(fill="x", padx=5, pady=2)
             self.item_frames.append(item)
             self._bind_scroll_recursive(item)
-        if self._spinner_job is not None: self._spinner_frame.pack(fill="x", padx=10, pady=6)
+
+        if self._spinner_job is not None: 
+            self._spinner_frame.pack(fill="x", padx=10, pady=6)
+
+        # Schedule next chunk in just 5ms to keep it ultra-fast but completely smooth and responsive
+        self._render_job = self.after(5, lambda: self._render_chunks(packages, end_idx, chunk_size))
 
     def _bind_scroll_recursive(self, widget):
         """Polyfill-Safe recursive binding for the scroll wheel."""
@@ -240,12 +267,17 @@ class PackageListFrame(ctk.CTkScrollableFrame):
 
     def apply_filter(self, active_backends):
         self._active_backends = active_backends
-        self.clear()
+        self.clear(keep_cache=True)
         self.add_packages(self._all_packages, from_filter=True)
 
-    def clear(self):
+    def clear(self, keep_cache=False):
+        if self._render_job is not None:
+            self.after_cancel(self._render_job)
+            self._render_job = None
         for item in self.item_frames: item.destroy()
         self.item_frames.clear(); self.selected_item = None
+        if not keep_cache:
+            self._all_packages.clear()
 
     def on_item_click(self, item_frame, pkg_data):
         if self.selected_item: self.selected_item.set_selected(False)

@@ -15,6 +15,8 @@
 - **⏱️ Dynamic Real-time Parallel Search**: Multi-threaded parallel search queries all active backends concurrently. Features a real-time ticking search timer and status indicators that show which package manager is currently active in the background.
 - **🔍 Case-Insensitive Matching**: Normalized search inputs ensure seamless, case-insensitive package lookups across every native database.
 - **🎚️ Scalable Split Layout**: Features a draggable, premium vertical splitter separating the package list and preview panes. Built-in resizing priority automatically scales/shrinks the search list panel first, keeping the package detail actions and previews fully visible. Includes an intelligent flow layout that dynamically wraps/stacks backend filter buttons onto multiple lines when sidebar space is reduced.
+- **🔍 Dynamic Search Cache Filtering**: Toggling or unchecking filter buttons instantly recalculates visible packages from the active search memory cache without leaking state or resetting back to the installed apps page.
+- **⚡ Lag-Free Chunked Rendering**: Re-engineered item rendering to build lists incrementally (8 elements at a time) via an asynchronous event callback loop every 5ms. Keeps the main thread perfectly unblocked, guarantees fluid scrolling/resizing during loading, allows instant rendering cancellation on new queries, and comfortably scales up to 200+ visible results without any UI lag.
 - **📂 Native Integration**: Launches your system's native file explorer and terminal for all operations.
 
 ---
