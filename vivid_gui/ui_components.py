@@ -81,12 +81,12 @@ class BackendFilterBar(ctk.CTkFrame):
         self._buttons = {}
         
         self._label = ctk.CTkLabel(self, text="Filter:", text_color="gray", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
-        self._all_btn = ctk.CTkButton(self, text="All", width=60, height=26, fg_color=("gray70", "gray30"), command=self._select_all)
+        self._all_btn = ctk.CTkButton(self, text="All", width=60, height=26, fg_color=("gray70", "gray30"), corner_radius=13, command=self._select_all)
         
         for backend in backends:
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")
-            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
+            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, corner_radius=13, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             self._buttons[bid] = btn
             
         self.bind("<Configure>", self._on_configure)
@@ -101,8 +101,12 @@ class BackendFilterBar(ctk.CTkFrame):
     def arrange_buttons(self, width=None):
         if width is None:
             width = self.winfo_width()
+        
+        # Deduct padding/margin to trigger wrapping before container edge compression starts.
+        # This keeps the button widths from being squished down to squares.
+        width -= 24
         if width <= 10:
-            width = 320
+            width = 296
             
         widgets = []
         if hasattr(self, "_label") and self._label.winfo_exists():
@@ -141,7 +145,7 @@ class BackendFilterBar(ctk.CTkFrame):
         for backend in backends:
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")
-            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
+            btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, corner_radius=13, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             self._buttons[bid] = btn
         self.arrange_buttons()
 
