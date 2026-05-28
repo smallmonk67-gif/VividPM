@@ -6,6 +6,7 @@ from vivid_gui.action_runner import ActionRunner
 import threading
 import os
 import sys
+import time
 from vivid_gui import utils
 
 # Application Version
@@ -134,6 +135,7 @@ class App(ctk.CTk):
     def handle_search(self, query):
         if not query: return
         
+        self.search_start_time = time.time()
         self.package_list.clear()
         self.package_list.start_loading(len(self.pkg_manager.backends))
         self.update_status(f"Searching for '{query}'...")
@@ -147,7 +149,10 @@ class App(ctk.CTk):
 
     def _run_backend_search(self, backend, query):
         try:
+            start_time = time.time()
             results = backend.search(query)
+            elapsed = time.time() - start_time
+            print(f"[{backend.BACKEND_ID}] Search took {elapsed:.4f}s")
             self.after(0, self._append_search_results, results)
         except Exception as e:
             print(f"Error searching backend {backend.BACKEND_ID}: {e}")
@@ -156,7 +161,8 @@ class App(ctk.CTk):
 
     def _append_search_results(self, results):
         self.package_list.add_packages(results)
-        self.update_status(f"Found {len(self.package_list.item_frames)} results")
+        elapsed = time.time() - self.search_start_time
+        self.update_status(f"Found {len(self.package_list.item_frames)} results in {elapsed:.2f}s")
 
     def handle_filter_change(self, active_backends):
         self.package_list.apply_filter(active_backends)
