@@ -20,22 +20,38 @@ jobs:
         include:
           - platform: macos-arm64
             os: macos-latest
+            app_name: VividPM_macOS_arm64_v2.1.0
             artifact_name: VividPM_macOS_arm64_v2.1.0.zip
             delimiter: ":"
             type: macos
           - platform: macos-x86_64
             os: macos-15-intel
+            app_name: VividPM_macOS_x86_64_v2.1.0
             artifact_name: VividPM_macOS_x86_64_v2.1.0.zip
             delimiter: ":"
             type: macos
           - platform: linux-arm64
             os: ubuntu-24.04-arm
+            app_name: VividPM_Linux_arm64_v2.1.0
             artifact_name: VividPM_Linux_arm64_v2.1.0
+            delimiter: ":"
+            type: linux
+          - platform: linux-x86_64
+            os: ubuntu-latest
+            app_name: VividPM_Linux_x86_64_v2.1.0
+            artifact_name: VividPM_Linux_x86_64_v2.1.0
             delimiter: ":"
             type: linux
           - platform: windows-arm64
             os: windows-11-arm
+            app_name: VividPM_Windows_arm64_v2.1.0
             artifact_name: VividPM_Windows_arm64_v2.1.0.exe
+            delimiter: ";"
+            type: windows
+          - platform: windows-x86_64
+            os: windows-latest
+            app_name: VividPM_Windows_x86_64_v2.1.0
+            artifact_name: VividPM_Windows_x86_64_v2.1.0.exe
             delimiter: ";"
             type: windows
 
@@ -73,7 +89,7 @@ jobs:
         CTK_PATH=$(python -c "import customtkinter, os; print(os.path.dirname(customtkinter.__file__).replace('\\\\', '/'))")
         pyinstaller --noconfirm --onefile --windowed \
           --icon "icon.png" \
-          --name "VividPM_Linux_arm64_v2.1.0" \
+          --name "${{ matrix.app_name }}" \
           --add-data "${CTK_PATH}${{ matrix.delimiter }}customtkinter/" \
           --add-data "icon.png${{ matrix.delimiter }}." \
           --add-data "vivid_gui${{ matrix.delimiter }}vivid_gui" \
@@ -86,7 +102,7 @@ jobs:
         CTK_PATH=$(python -c "import customtkinter, os; print(os.path.dirname(customtkinter.__file__).replace('\\\\', '/'))")
         pyinstaller --noconfirm --onefile --windowed \
           --icon "icon.ico" \
-          --name "VividPM_Windows_arm64_v2.1.0" \
+          --name "${{ matrix.app_name }}" \
           --add-data "${CTK_PATH}${{ matrix.delimiter }}customtkinter/" \
           --add-data "icon.png${{ matrix.delimiter }}." \
           --add-data "vivid_gui${{ matrix.delimiter }}vivid_gui" \
@@ -98,6 +114,5 @@ jobs:
         name: VividPM-${{ matrix.platform }}
         path: |
           ${{ matrix.artifact_name }}
-          dist/VividPM_Linux_arm64_v2.1.0
-          dist/VividPM_Windows_arm64_v2.1.0.exe
+          dist/${{ matrix.artifact_name }}
         if-no-files-found: ignore
