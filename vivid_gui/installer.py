@@ -83,6 +83,20 @@ INSTALLABLE_BACKENDS = {
     },
 }
 
+
+def get_system_package_manager():
+    """Auto-detect the host OS's primary native package manager."""
+    if shutil.which("pacman"):
+        return "pacman"
+    elif shutil.which("apt-get"):
+        return "apt"
+    elif shutil.which("dnf"):
+        return "dnf"
+    elif shutil.which("zypper"):
+        return "zypper"
+    return None
+
+
 class PackageInstaller:
     def get_missing_backends(self):
         system_os = platform.system()
@@ -163,6 +177,29 @@ class PackageInstaller:
             try:
                 # Copy the command list to avoid mutating the shared dict
                 cmd = list(info["install_cmd"])
+
+                # Dynamically adjust install command for flatpak & snap on non-Arch systems
+                if backend_id in ("flatpak", "snap"):
+                    pm = get_system_package_manager()
+                    if pm == "apt":
+                        if backend_id == "flatpak":
+                            cmd = ["sudo", "apt-get", "install", "-y", "flatpak"]
+                        else:
+                            cmd = ["sudo", "apt-get", "install", "-y", "snapd"]
+                    elif pm == "dnf":
+                        if backend_id == "flatpak":
+                            cmd = ["sudo", "dnf", "install", "-y", "flatpak"]
+                        else:
+                            cmd = ["sudo", "dnf", "install", "-y", "snapd"]
+                    elif pm == "zypper":
+                        if backend_id == "flatpak":
+                            cmd = ["sudo", "zypper", "install", "-y", "flatpak"]
+                        else:
+                            cmd = ["sudo", "zypper", "install", "-y", "snapd"]
+                    elif pm == "pacman":
+                        # Standard Arch
+                        pass
+
                 # Resolve _AUR_HELPER_ placeholder dynamically
                 if cmd and cmd[0] == "_AUR_HELPER_":
                     helper = "yay" if shutil.which("yay") else ("paru" if shutil.which("paru") else None)
