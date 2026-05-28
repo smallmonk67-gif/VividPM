@@ -165,29 +165,125 @@ class BackendFilterBar(ctk.CTkFrame):
         self.on_filter_change(self.active_backends)
 
 
-class PackageListFrame(ctk.CTkScrollableFrame):
+class PackageListFrame(ctk.CTkFrame):
     def __init__(self, master, on_select_callback, **kwargs):
         super().__init__(master, **kwargs)
         self.on_select_callback = on_select_callback
-        self.item_frames = []
         self.selected_item = None
+        self.selected_pkg_id = None
         self._all_packages = []
+        self._filtered_packages = []
         self._active_backends = None
+        
         self._spinner_idx = 0
         self._spinner_job = None
-        self._render_job = None
         self._loading_backends = 0
+        
+        # Virtual Scrolling State
+        self._start_index = 0
+        self.pool_size = 20
+        self._pool = []
+        
+        # Layout
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Spinner
         self._spinner_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._spinner_label = ctk.CTkLabel(self._spinner_frame, text="", font=ctk.CTkFont(family=MODERN_FONT[0], size=16))
         self._spinner_label.pack(side="left", padx=(8, 4))
         self._spinner_text = ctk.CTkLabel(self._spinner_frame, text="Searching…", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
         self._spinner_text.pack(side="left")
-        self._bind_scroll_recursive(self)
+        self._spinner_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
+        self._spinner_frame.grid_remove()
+        
+        # Items container
+        self.items_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.items_container.grid(row=1, column=0, sticky="nsew")
+        self.items_container.grid_columnconfigure(0, weight=1)
+        
+        # Scrollbar
+        self.scrollbar = ctk.CTkScrollbar(self, command=self._on_scrollbar)
+        self.scrollbar.grid(row=1, column=1, sticky="ns")
+        
+        # Initialize Pool
+        for _ in range(self.pool_size):
+            item = PackageListItem(self.items_container, self.on_item_click)
+            self._pool.append(item)
+            
+        # Bind Mouse Wheel
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        self.bind("<Button-4>", self._on_mousewheel)
+        self.bind("<Button-5>", self._on_mousewheel)
+        self.items_container.bind("<MouseWheel>", self._on_mousewheel)
+        for child in self.winfo_children():
+            self._bind_mousewheel_recursive(child)
+
+    def _bind_mousewheel_recursive(self, widget):
+        widget.bind("<MouseWheel>", self._on_mousewheel, add="+")
+        widget.bind("<Button-4>", self._on_mousewheel, add="+")
+        widget.bind("<Button-5>", self._on_mousewheel, add="+")
+        for child in widget.winfo_children():
+            self._bind_mousewheel_recursive(child)
+
+    def _on_scrollbar(self, *args):
+        if len(args) == 2 and args[0] == "moveto":
+            fraction = float(args[1])
+            max_idx = max(0, len(self._filtered_packages) - self.pool_size)
+            self._start_index = int(fraction * max_idx)
+            self._update_visible_items()
+        elif len(args) == 3 and args[0] == "scroll":
+            delta = int(args[1])
+            self._scroll_by(delta)
+
+    def _on_mousewheel(self, event):
+        delta = 0
+        if event.num == 4: delta = -1
+        elif event.num == 5: delta = 1
+        elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
+        if delta != 0:
+            self._scroll_by(delta * 2)
+
+    def _scroll_by(self, delta):
+        max_idx = max(0, len(self._filtered_packages) - self.pool_size)
+        self._start_index = max(0, min(max_idx, self._start_index + delta))
+        self._update_visible_items()
+
+    def _update_visible_items(self):
+        total = len(self._filtered_packages)
+        if total <= self.pool_size:
+            self.scrollbar.set(0.0, 1.0)
+        else:
+            fraction_visible = self.pool_size / total
+            first = self._start_index / total
+            last = min(1.0, first + fraction_visible)
+            self.scrollbar.set(first, last)
+            
+        for i, item in enumerate(self._pool):
+            idx = self._start_index + i
+            if idx < total:
+                pkg = self._filtered_packages[idx]
+                item.update_data(pkg)
+                
+                pkg_id = f"{pkg.get('backend')}:{pkg.get('Name')}"
+                if self.selected_pkg_id == pkg_id:
+                    item.set_selected(True)
+                    self.selected_item = item
+                else:
+                    item.set_selected(False)
+                    if self.selected_item == item:
+                        self.selected_item = None
+                        
+                if not item.winfo_ismapped():
+                    item.grid(row=i, column=0, sticky="ew", padx=5, pady=2)
+            else:
+                if item.winfo_ismapped():
+                    item.grid_remove()
 
     def start_loading(self, count=1):
         self._loading_backends += count
         if self._spinner_job is None:
-            self._spinner_frame.pack(fill="x", padx=10, pady=6)
+            self._spinner_frame.grid()
             self._animate_spinner()
 
     def stop_one_backend(self):
@@ -202,108 +298,88 @@ class PackageListFrame(ctk.CTkScrollableFrame):
 
     def _hide_spinner(self):
         if self._spinner_job: self.after_cancel(self._spinner_job); self._spinner_job = None
-        self._spinner_frame.pack_forget()
+        self._spinner_frame.grid_remove()
 
     def add_packages(self, packages, from_filter=False):
         if not from_filter: 
             self._all_packages.extend(packages)
         if self._spinner_job is not None: 
-            self._spinner_frame.pack_forget()
-        
-        to_add = packages
-        if self._active_backends is not None:
-            to_add = [p for p in to_add if p.get("backend") in self._active_backends]
+            self._spinner_frame.grid_remove()
             
-        # Cancel any active render jobs to avoid rendering overlapping/old search results
-        if self._render_job is not None:
-            self.after_cancel(self._render_job)
-            self._render_job = None
-
-        # Increase visible limit to 200 since incremental rendering makes it completely lag-free!
-        self._render_chunks(to_add[:200], 0, chunk_size=8)
-
-    def _render_chunks(self, packages, start_idx, chunk_size):
-        self._render_job = None
-        if start_idx >= len(packages):
-            if self._spinner_job is not None: 
-                self._spinner_frame.pack(fill="x", padx=10, pady=6)
-            return
-
-        end_idx = min(start_idx + chunk_size, len(packages))
+        self._apply_current_filter()
+        
         if self._spinner_job is not None: 
-            self._spinner_frame.pack_forget()
-
-        for i in range(start_idx, end_idx):
-            pkg = packages[i]
-            item = PackageListItem(self, pkg, self.on_item_click)
-            item.pack(fill="x", padx=5, pady=2)
-            self.item_frames.append(item)
-            self._bind_scroll_recursive(item)
-
-        if self._spinner_job is not None: 
-            self._spinner_frame.pack(fill="x", padx=10, pady=6)
-
-        # Schedule next chunk in just 5ms to keep it ultra-fast but completely smooth and responsive
-        self._render_job = self.after(5, lambda: self._render_chunks(packages, end_idx, chunk_size))
-
-    def _bind_scroll_recursive(self, widget):
-        """Polyfill-Safe recursive binding for the scroll wheel."""
-        def on_mouse_scroll(event):
-            delta = 0
-            if event.num == 4: delta = -1
-            elif event.num == 5: delta = 1
-            elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
-            if delta != 0:
-                for attr in ["_canvas", "canvas", "_parent_canvas"]:
-                    if hasattr(self, attr):
-                        try:
-                            getattr(self, attr).yview_scroll(delta, "units")
-                            break 
-                        except: continue
-        widget.bind("<MouseWheel>", on_mouse_scroll, add="+")
-        widget.bind("<Button-4>", on_mouse_scroll, add="+")
-        widget.bind("<Button-5>", on_mouse_scroll, add="+")
-        for child in widget.winfo_children(): self._bind_scroll_recursive(child)
+            self._spinner_frame.grid()
 
     def apply_filter(self, active_backends):
         self._active_backends = active_backends
-        self.clear(keep_cache=True)
-        self.add_packages(self._all_packages, from_filter=True)
+        self._apply_current_filter()
+
+    def _apply_current_filter(self):
+        if self._active_backends is not None:
+            self._filtered_packages = [p for p in self._all_packages if p.get("backend") in self._active_backends]
+        else:
+            self._filtered_packages = list(self._all_packages)
+        
+        max_idx = max(0, len(self._filtered_packages) - self.pool_size)
+        if self._start_index > max_idx:
+            self._start_index = max_idx
+            
+        self._update_visible_items()
 
     def clear(self, keep_cache=False):
-        if self._render_job is not None:
-            self.after_cancel(self._render_job)
-            self._render_job = None
-        for item in self.item_frames: item.destroy()
-        self.item_frames.clear(); self.selected_item = None
+        self._start_index = 0
+        self.selected_item = None
+        self.selected_pkg_id = None
+        for item in self._pool:
+            if item.winfo_ismapped():
+                item.grid_remove()
         if not keep_cache:
             self._all_packages.clear()
+            self._filtered_packages.clear()
+        self.scrollbar.set(0.0, 1.0)
 
     def on_item_click(self, item_frame, pkg_data):
         if self.selected_item: self.selected_item.set_selected(False)
-        self.selected_item = item_frame; self.selected_item.set_selected(True)
+        self.selected_item = item_frame
+        self.selected_pkg_id = f"{pkg_data.get('backend')}:{pkg_data.get('Name')}"
+        item_frame.set_selected(True)
         self.on_select_callback(pkg_data)
 
 
 class PackageListItem(ctk.CTkFrame):
-    def __init__(self, master, pkg_data, click_callback, **kwargs):
-        super().__init__(master, corner_radius=15, fg_color=("gray90", "#252525"), border_width=1, border_color=("gray80", "#333333"), **kwargs)
-        self.pkg_data = pkg_data; self.click_callback = click_callback
+    def __init__(self, master, click_callback, **kwargs):
+        super().__init__(master, corner_radius=15, fg_color=("gray90", "#252525"), border_width=1, border_color=("gray80", "#333333"), height=75, **kwargs)
+        self.grid_propagate(False)
+        self.click_callback = click_callback
         self.grid_columnconfigure(1, weight=1)
+        self.pkg_data = {}
+        
+        self.icon_label = ctk.CTkLabel(self, text="")
+        self.icon_label.grid(row=0, column=0, rowspan=2, padx=(15, 5), pady=10)
+        self.name_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family=MODERN_FONT[0], size=14, weight="bold"), anchor="w")
+        self.name_label.grid(row=0, column=1, padx=(5, 15), pady=(12, 0), sticky="ew")
+        self.badge = ctk.CTkLabel(self, text="", corner_radius=20, text_color="white", font=ctk.CTkFont(family=MODERN_FONT[0], size=9, weight="bold"), width=65, height=20)
+        self.badge.place(relx=1.0, x=-15, y=15, anchor="ne")
+        self.desc_label = ctk.CTkLabel(self, text="", text_color=("gray40", "gray60"), anchor="w", font=ctk.CTkFont(family=MODERN_FONT[0], size=12), wraplength=280)
+        self.desc_label.grid(row=1, column=1, padx=(5, 15), pady=(2, 12), sticky="w")
+        
+        for w in [self, self.name_label, self.desc_label, self.icon_label]:
+            w.bind("<Button-1>", self.on_click)
+            w.bind("<Enter>", self.on_enter)
+            w.bind("<Leave>", self.on_leave)
+
+    def update_data(self, pkg_data):
+        self.pkg_data = pkg_data
         backend = pkg_data.get("backend", "pacman")
         icon_img = icon_resolver.get_icon_image(pkg_data.get("Icon", ""), size=(40, 40)) or icon_resolver.get_placeholder_icon(size=(40, 40))
-        self.icon_label = ctk.CTkLabel(self, text="", image=icon_img)
-        self.icon_label.grid(row=0, column=0, rowspan=2, padx=(15, 5), pady=10)
-        self.name_label = ctk.CTkLabel(self, text=pkg_data.get("Name", "Unknown"), font=ctk.CTkFont(family=MODERN_FONT[0], size=14, weight="bold"), anchor="w")
-        self.name_label.grid(row=0, column=1, padx=(5, 15), pady=(12, 0), sticky="ew")
-        badge = ctk.CTkLabel(self, text=BACKEND_LABELS.get(backend, backend).upper(), fg_color=BACKEND_COLORS.get(backend, "gray"), corner_radius=20, text_color="white", font=ctk.CTkFont(family=MODERN_FONT[0], size=9, weight="bold"), width=65, height=20)
-        badge.place(relx=1.0, x=-15, y=15, anchor="ne")
+        self.icon_label.configure(image=icon_img)
+        self.name_label.configure(text=pkg_data.get("Name", "Unknown"))
+        self.badge.configure(text=BACKEND_LABELS.get(backend, backend).upper(), fg_color=BACKEND_COLORS.get(backend, "gray"))
         desc = pkg_data.get("Description", "No description available.")
         if len(desc) > 85: desc = desc[:82] + "..."
-        self.desc_label = ctk.CTkLabel(self, text=desc, text_color=("gray40", "gray60"), anchor="w", font=ctk.CTkFont(family=MODERN_FONT[0], size=12), wraplength=280)
-        self.desc_label.grid(row=1, column=1, padx=(5, 15), pady=(2, 12), sticky="w")
-        for w in [self, self.name_label, self.desc_label, self.icon_label]:
-            w.bind("<Button-1>", self.on_click); w.bind("<Enter>", self.on_enter); w.bind("<Leave>", self.on_leave)
+        self.desc_label.configure(text=desc)
+        self.set_selected(getattr(self, "_selected", False))
 
     def on_enter(self, event): self.configure(fg_color=("gray85", "#2e2e2e"), border_color=("#0099ff", "#0099ff"))
     def on_leave(self, event):
