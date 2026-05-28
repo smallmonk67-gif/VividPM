@@ -134,11 +134,16 @@ class App(ctk.CTk):
 
     def handle_search(self, query):
         if not query: return
+        query = query.strip().lower()
         
         self.search_start_time = time.time()
+        self.search_session_id = object()
+        self.active_search_backends = {b.BACKEND_ID for b in self.pkg_manager.backends}
         self.package_list.clear()
         self.package_list.start_loading(len(self.pkg_manager.backends))
         self.update_status(f"Searching for '{query}'...")
+        
+        self._update_search_timer(query, self.search_session_id)
 
         for backend in self.pkg_manager.backends:
             threading.Thread(
@@ -146,6 +151,27 @@ class App(ctk.CTk):
                 args=(backend, query), 
                 daemon=True
             ).start()
+
+    def _update_search_timer(self, query, session_id):
+        if getattr(self, "search_session_id", None) != session_id:
+            return
+            
+        if self.package_list._loading_backends > 0:
+            elapsed = time.time() - self.search_start_time
+            count = len(self.package_list.item_frames)
+            
+            backends_list = ", ".join(sorted(getattr(self, "active_search_backends", [])))
+            backends_str = f" in {backends_list}" if backends_list else ""
+            
+            if count > 0:
+                self.update_status(f"Searching{backends_str}... Found {count} results ({elapsed:.1f}s)")
+            else:
+                self.update_status(f"Searching for '{query}'{backends_str}... ({elapsed:.1f}s)")
+            self.after(100, self._update_search_timer, query, session_id)
+
+    def _remove_active_search_backend(self, backend_id):
+        if hasattr(self, "active_search_backends"):
+            self.active_search_backends.discard(backend_id)
 
     def _run_backend_search(self, backend, query):
         try:
@@ -157,6 +183,7 @@ class App(ctk.CTk):
         except Exception as e:
             print(f"Error searching backend {backend.BACKEND_ID}: {e}")
         finally:
+            self.after(0, self._remove_active_search_backend, backend.BACKEND_ID)
             self.after(0, self.package_list.stop_one_backend)
 
     def _append_search_results(self, results):

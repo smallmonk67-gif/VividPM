@@ -9,9 +9,11 @@
 
 ## 🚀 Key Features
 - **🎨 Vibrant Aesthetics**: A state-of-the-art UI with dynamic hero banners, smooth animations, and high-quality iconography.
-- **🌍 Multi-Platform**: Native support for Linux distributions and Windows.
-- **📱 Smart Detection & Auto-Install**: Automatically detects your OS and active package managers. If optional tools like Scoop or Chocolatey are missing on Windows, VividPM can install them for you with a single click.
-- **🔍 Real-time Search**: Multi-threaded parallel search across all active backends with a smooth loading experience.
+- **🌍 Multi-Platform & Universal Linux**: Native support for Windows, macOS, and all major Linux distributions (with dynamic, automatic package manager detection for Arch, Debian/Ubuntu, Fedora, and openSUSE).
+- **📱 Smart Detection & Auto-Install**: Automatically detects your OS and active package managers. If optional backends (like Flatpak, Snap, Scoop, or Chocolatey) are missing, VividPM can install them using your system's native package manager with a single click.
+- **⚡ High-Performance APT Searching**: Employs an ultra-fast query matching strategy and a 10-second typing cache to eliminate search latency and make APT package lookups instantaneous.
+- **⏱️ Dynamic Real-time Parallel Search**: Multi-threaded parallel search queries all active backends concurrently. Features a real-time ticking search timer and status indicators that show which package manager is currently active in the background.
+- **🔍 Case-Insensitive Matching**: Normalized search inputs ensure seamless, case-insensitive package lookups across every native database.
 - **📂 Native Integration**: Launches your system's native file explorer and terminal for all operations.
 
 ---
