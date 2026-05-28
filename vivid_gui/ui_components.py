@@ -357,12 +357,15 @@ class PackageListFrame(ctk.CTkFrame):
         self.selected_item = None
         self.selected_pkg_id = None
         for item in self._pool:
+            item.pkg_data = {}  # Reset stale data so update_data early-return doesn't skip
             if item.winfo_ismapped():
                 item.grid_remove()
         if not keep_cache:
             self._all_packages.clear()
             self._filtered_packages.clear()
         self.scrollbar.set(0.0, 1.0)
+        self._loading_backends = 0
+        self._hide_spinner()
 
     def on_item_click(self, item_frame, pkg_data):
         if self.selected_item: self.selected_item.set_selected(False)
@@ -460,7 +463,9 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         else: self.install_btn.pack(side="left", padx=5)
         if self.fetch_extended_info: self._set_text(self.depends_text, "Loading details..."); self.fetch_extended_info(pkg, self._on_extended_info)
 
-    def _on_extended_info(self, info): self.after(0, lambda: self._set_text(self.depends_text, info.get("Depends On", "None")))
+    def _on_extended_info(self, info, pkg): 
+        if self.current_pkg != pkg: return
+        self.after(0, lambda: self._set_text(self.depends_text, info.get("Depends On", "None")))
     def _set_text(self, widget, text): widget.configure(state="normal"); widget.delete("1.0", "end"); widget.insert("1.0", text); widget.configure(state="disabled")
     def _bind_scroll_recursive(self, widget):
         """Polyfill-Safe recursive binding for the scroll wheel."""

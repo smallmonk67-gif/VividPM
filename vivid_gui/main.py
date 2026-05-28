@@ -143,26 +143,34 @@ class App(ctk.CTk):
         backends = [b for b in self.pkg_manager.backends if b.BACKEND_ID in active_ids]
         
         self.package_list.start_loading(len(backends))
+        self.scan_session_id = object()
 
         for backend in backends:
             threading.Thread(
                 target=self._run_backend_installed_scan,
-                args=(backend,),
+                args=(backend, self.scan_session_id),
                 daemon=True
             ).start()
 
-    def _run_backend_installed_scan(self, backend):
+    def _run_backend_installed_scan(self, backend, session_id):
         try:
             results = backend.get_installed()
-            self.after(0, self._append_installed_results, results)
+            self.after(0, self._append_installed_results, results, session_id)
         except Exception as e:
             print(f"Error loading installed apps from {backend.BACKEND_ID}: {e}")
         finally:
-            self.after(0, self.package_list.stop_one_backend)
+            self.after(0, self._finish_installed_scan, session_id)
 
-    def _append_installed_results(self, results):
+    def _append_installed_results(self, results, session_id):
+        if getattr(self, "scan_session_id", None) != session_id:
+            return
         self.package_list.add_packages(results)
-        self.update_status(f"Loaded {len(self.package_list.item_frames)} installed apps")
+        self.update_status(f"Loaded {len(self.package_list._all_packages)} installed apps")
+
+    def _finish_installed_scan(self, session_id):
+        if getattr(self, "scan_session_id", None) != session_id:
+            return
+        self.package_list.stop_one_backend()
 
     def update_status(self, text):
         self.status_label.configure(text=text)
@@ -185,10 +193,11 @@ class App(ctk.CTk):
         
         self._update_search_timer(query, self.search_session_id)
 
+        session_id = self.search_session_id
         for backend in backends:
             threading.Thread(
                 target=self._run_backend_search, 
-                args=(backend, query), 
+                args=(backend, query, session_id), 
                 daemon=True
             ).start()
 
@@ -198,7 +207,7 @@ class App(ctk.CTk):
             
         if self.package_list._loading_backends > 0:
             elapsed = time.time() - self.search_start_time
-            count = len(self.package_list.item_frames)
+            count = len(self.package_list._filtered_packages)
             
             backends_list = ", ".join(sorted(getattr(self, "active_search_backends", [])))
             backends_str = f" in {backends_list}" if backends_list else ""
@@ -213,23 +222,30 @@ class App(ctk.CTk):
         if hasattr(self, "active_search_backends"):
             self.active_search_backends.discard(backend_id)
 
-    def _run_backend_search(self, backend, query):
+    def _run_backend_search(self, backend, query, session_id):
         try:
             start_time = time.time()
             results = backend.search(query)
             elapsed = time.time() - start_time
             print(f"[{backend.BACKEND_ID}] Search took {elapsed:.4f}s")
-            self.after(0, self._append_search_results, results)
+            self.after(0, self._append_search_results, results, session_id)
         except Exception as e:
             print(f"Error searching backend {backend.BACKEND_ID}: {e}")
         finally:
-            self.after(0, self._remove_active_search_backend, backend.BACKEND_ID)
-            self.after(0, self.package_list.stop_one_backend)
+            self.after(0, self._finish_backend_search, backend.BACKEND_ID, session_id)
 
-    def _append_search_results(self, results):
+    def _append_search_results(self, results, session_id):
+        if getattr(self, "search_session_id", None) != session_id:
+            return
         self.package_list.add_packages(results)
         elapsed = time.time() - self.search_start_time
-        self.update_status(f"Found {len(self.package_list.item_frames)} results in {elapsed:.2f}s")
+        self.update_status(f"Found {len(self.package_list._filtered_packages)} results in {elapsed:.2f}s")
+
+    def _finish_backend_search(self, backend_id, session_id):
+        if getattr(self, "search_session_id", None) != session_id:
+            return
+        self._remove_active_search_backend(backend_id)
+        self.package_list.stop_one_backend()
 
     def handle_filter_change(self, active_backends):
         self.package_list.apply_filter(active_backends)
@@ -249,7 +265,7 @@ class App(ctk.CTk):
         backend = self.pkg_manager.get_backend(backend_id)
         if backend:
             info = backend.get_info(pkg.get("Name"))
-            callback(info)
+            callback(info, pkg)
 
     def install_package(self, pkg):
         self.update_status(f"Installing {pkg['Name']}...")
@@ -399,8 +415,9 @@ def main():
         scaling = utils.get_scaling_factor()
         ctk.set_widget_scaling(scaling)
         ctk.set_window_scaling(scaling)
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        # Theme and accent are applied by App.__init__ from saved config
+        ctk.set_default_color_theme(config_manager.get("accent_color", "blue"))
+        ctk.set_appearance_mode(config_manager.get("theme", "System"))
         app = App()
         try:
             app.tk.call('tk', 'scaling', scaling * 1.333)
