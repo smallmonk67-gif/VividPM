@@ -89,10 +89,11 @@ class BackendFilterBar(ctk.CTkFrame):
             btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, corner_radius=13, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             self._buttons[bid] = btn
             
+        self.arrange_buttons()
         self.bind("<Configure>", self._on_configure)
 
     def _on_configure(self, event):
-        if event.widget != self:
+        if str(event.widget) != str(self):
             return
         width = event.width
         if getattr(self, "_last_width", 0) == width:
