@@ -14,7 +14,7 @@
 - **⚡ High-Performance APT Searching**: Employs an ultra-fast query matching strategy and a 10-second typing cache to eliminate search latency and make APT package lookups instantaneous.
 - **⏱️ Dynamic Real-time Parallel Search**: Multi-threaded parallel search queries all active backends concurrently. Features a real-time ticking search timer and status indicators that show which package manager is currently active in the background.
 - **🔍 Case-Insensitive Matching**: Normalized search inputs ensure seamless, case-insensitive package lookups across every native database.
-- **🎚️ Scalable Split Layout**: Features a draggable, premium vertical splitter separating the package list and preview panes. Built-in resizing priority automatically scales/shrinks the search list panel first, keeping the package detail actions and previews fully visible.
+- **🎚️ Scalable Split Layout**: Features a draggable, premium vertical splitter separating the package list and preview panes. Built-in resizing priority automatically scales/shrinks the search list panel first, keeping the package detail actions and previews fully visible. Includes an intelligent flow layout that dynamically wraps/stacks backend filter buttons onto multiple lines when sidebar space is reduced.
 - **📂 Native Integration**: Launches your system's native file explorer and terminal for all operations.
 
 ---

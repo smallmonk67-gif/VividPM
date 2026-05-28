@@ -79,16 +79,59 @@ class BackendFilterBar(ctk.CTkFrame):
         self.on_filter_change = on_filter_change
         self.active_backends = set(b.BACKEND_ID for b in backends)
         self._buttons = {}
-        label = ctk.CTkLabel(self, text="Filter:", text_color="gray", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
-        label.pack(side="left", padx=(8, 4))
-        all_btn = ctk.CTkButton(self, text="All", width=60, height=26, fg_color=("gray70", "gray30"), command=self._select_all)
-        all_btn.pack(side="left", padx=2)
+        
+        self._label = ctk.CTkLabel(self, text="Filter:", text_color="gray", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
+        self._all_btn = ctk.CTkButton(self, text="All", width=60, height=26, fg_color=("gray70", "gray30"), command=self._select_all)
+        
         for backend in backends:
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")
             btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
-            btn.pack(side="left", padx=2)
             self._buttons[bid] = btn
+            
+        self.bind("<Configure>", self._on_configure)
+
+    def _on_configure(self, event):
+        width = event.width
+        if getattr(self, "_last_width", 0) == width:
+            return
+        self._last_width = width
+        self.arrange_buttons(width)
+
+    def arrange_buttons(self, width=None):
+        if width is None:
+            width = self.winfo_width()
+        if width <= 10:
+            width = 320
+            
+        widgets = []
+        if hasattr(self, "_label") and self._label.winfo_exists():
+            widgets.append((self._label, 50))
+        if hasattr(self, "_all_btn") and self._all_btn.winfo_exists():
+            widgets.append((self._all_btn, 60))
+            
+        for bid in sorted(self._buttons.keys()):
+            btn = self._buttons[bid]
+            if btn.winfo_exists():
+                widgets.append((btn, 72))
+                
+        padx = 4
+        pady = 4
+        current_x = 0
+        current_row = 0
+        current_col = 0
+        
+        for w, _ in widgets:
+            w.grid_forget()
+            
+        for w, w_width in widgets:
+            if current_x + w_width + padx > width and current_x > 0:
+                current_row += 1
+                current_x = 0
+                current_col = 0
+            w.grid(row=current_row, column=current_col, padx=padx//2, pady=pady//2, sticky="w")
+            current_x += w_width + padx
+            current_col += 1
 
     def rebuild(self, backends):
         for btn in self._buttons.values():
@@ -99,8 +142,8 @@ class BackendFilterBar(ctk.CTkFrame):
             bid = backend.BACKEND_ID
             color = BACKEND_COLORS.get(bid, "gray")
             btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
-            btn.pack(side="left", padx=2)
             self._buttons[bid] = btn
+        self.arrange_buttons()
 
     def _toggle(self, backend_id):
         if backend_id in self.active_backends:
