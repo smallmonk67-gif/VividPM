@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter as tk
 from vivid_gui.pkg_manager import PackageManager
 from vivid_gui.ui_components import SearchBar, BackendFilterBar, PackageListFrame, PackageDetailFrame
 from vivid_gui.installer import PackageInstaller
@@ -20,8 +21,7 @@ class App(ctk.CTk):
         self.geometry("1100x700")
         
         # Ensure the app starts with a modern aesthetic
-        self.grid_columnconfigure(0, weight=0) # Sidebar
-        self.grid_columnconfigure(1, weight=1) # Main content
+        self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         # Initialize core components
@@ -37,9 +37,20 @@ class App(ctk.CTk):
         self.after(1000, self._check_missing_backends)
 
     def _setup_ui(self):
+        # Main PanedWindow for resizable/scalable layout
+        self.paned_window = tk.PanedWindow(
+            self, 
+            orient="horizontal", 
+            bd=0, 
+            sashwidth=4, 
+            sashpad=0, 
+            bg="#161616", 
+            relief="flat"
+        )
+        self.paned_window.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+
         # Left Panel: Sidebar + Search
-        self.left_panel = ctk.CTkFrame(self, width=320, corner_radius=0)
-        self.left_panel.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        self.left_panel = ctk.CTkFrame(self.paned_window, width=320, corner_radius=0)
         self.left_panel.grid_propagate(False)
 
         # App Logo/Title
@@ -67,8 +78,11 @@ class App(ctk.CTk):
         self.package_list.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # Right Panel: Details
-        self.right_panel = ctk.CTkFrame(self, corner_radius=0, fg_color=("white", "#1e1e1e"))
-        self.right_panel.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
+        self.right_panel = ctk.CTkFrame(self.paned_window, corner_radius=0, fg_color=("white", "#1e1e1e"))
+        
+        # Add panels to PanedWindow. Left panel is resizable/scalable, right panel preserves width on shrink.
+        self.paned_window.add(self.left_panel, width=320, minsize=200, stretch="always")
+        self.paned_window.add(self.right_panel, minsize=400, stretch="never")
         
         self.detail_view = PackageDetailFrame(
             self.right_panel, 
