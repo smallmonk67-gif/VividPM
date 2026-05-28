@@ -48,3 +48,5 @@ releases/*.Appimage
 releases/*.AppImage
 releases/*.exe
 releases/*.zip
+releases/*.pyw
+VividPM_Universal.pyw
