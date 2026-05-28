@@ -9,7 +9,8 @@ class ConfigManager:
         "theme": "System",
         "accent_color": "blue",
         "startup_scan": True,
-        "show_warnings": True
+        "show_warnings": True,
+        "startup_filters": []
     }
 
     def __new__(cls):

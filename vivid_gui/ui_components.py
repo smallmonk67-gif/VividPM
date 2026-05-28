@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import datetime
 from vivid_gui import icon_resolver
+from vivid_gui.config_manager import config_manager
 
 # Premium color palette
 BACKEND_COLORS = {
@@ -77,7 +78,17 @@ class BackendFilterBar(ctk.CTkFrame):
     def __init__(self, master, backends, on_filter_change, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         self.on_filter_change = on_filter_change
-        self.active_backends = set(b.BACKEND_ID for b in backends)
+        
+        # Load from config, default to all backends if empty
+        saved_filters = config_manager.get("startup_filters")
+        if saved_filters:
+            self.active_backends = set(bid for bid in saved_filters if any(b.BACKEND_ID == bid for b in backends))
+            # In case saved filters are all invalid/empty, fall back to all backends
+            if not self.active_backends:
+                self.active_backends = set(b.BACKEND_ID for b in backends)
+        else:
+            self.active_backends = set(b.BACKEND_ID for b in backends)
+            
         self._buttons = {}
         
         self._label = ctk.CTkLabel(self, text="Filter:", text_color="gray", font=ctk.CTkFont(family=MODERN_FONT[0], size=13))
@@ -85,7 +96,7 @@ class BackendFilterBar(ctk.CTkFrame):
         
         for backend in backends:
             bid = backend.BACKEND_ID
-            color = BACKEND_COLORS.get(bid, "gray")
+            color = BACKEND_COLORS.get(bid, "gray") if bid in self.active_backends else ("gray60", "gray35")
             btn = ctk.CTkButton(self, text=BACKEND_LABELS.get(bid, bid), width=70, height=26, fg_color=color, corner_radius=13, font=ctk.CTkFont(family=MODERN_FONT[0], size=11, weight="bold"), command=lambda b=bid: self._toggle(b))
             self._buttons[bid] = btn
             
@@ -241,8 +252,22 @@ class PackageListFrame(ctk.CTkFrame):
         if event.num == 4: delta = -1
         elif event.num == 5: delta = 1
         elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
+        
         if delta != 0:
-            self._scroll_by(delta * 2)
+            if not hasattr(self, "_pending_scroll"):
+                self._pending_scroll = 0
+            self._pending_scroll += delta
+            
+            if not getattr(self, "_scroll_scheduled", False):
+                self._scroll_scheduled = True
+                self.after_idle(self._process_pending_scroll)
+
+    def _process_pending_scroll(self):
+        self._scroll_scheduled = False
+        delta = getattr(self, "_pending_scroll", 0)
+        self._pending_scroll = 0
+        if delta != 0:
+            self._scroll_by(delta)
 
     def _scroll_by(self, delta):
         max_idx = max(0, len(self._filtered_packages) - self.pool_size)
@@ -370,6 +395,12 @@ class PackageListItem(ctk.CTkFrame):
             w.bind("<Leave>", self.on_leave)
 
     def update_data(self, pkg_data):
+        pkg_id = f"{pkg_data.get('backend')}:{pkg_data.get('Name')}"
+        current_id = f"{self.pkg_data.get('backend')}:{self.pkg_data.get('Name')}" if self.pkg_data else ""
+        
+        if pkg_id == current_id:
+            return
+
         self.pkg_data = pkg_data
         backend = pkg_data.get("backend", "pacman")
         icon_img = icon_resolver.get_icon_image(pkg_data.get("Icon", ""), size=(40, 40)) or icon_resolver.get_placeholder_icon(size=(40, 40))
@@ -379,13 +410,14 @@ class PackageListItem(ctk.CTkFrame):
         desc = pkg_data.get("Description", "No description available.")
         if len(desc) > 85: desc = desc[:82] + "..."
         self.desc_label.configure(text=desc)
-        self.set_selected(getattr(self, "_selected", False))
 
     def on_enter(self, event): self.configure(fg_color=("gray85", "#2e2e2e"), border_color=("#0099ff", "#0099ff"))
     def on_leave(self, event):
         if not getattr(self, "_selected", False): self.configure(fg_color=("gray90", "#252525"), border_color=("gray80", "#333333"))
     def on_click(self, event): self.click_callback(self, self.pkg_data)
     def set_selected(self, selected: bool):
+        if getattr(self, "_selected", None) == selected:
+            return
         self._selected = selected
         if selected: self.configure(fg_color=("#eef7ff", "#1a2a3a"), border_color=("#0099ff", "#0099ff"), border_width=2)
         else: self.configure(fg_color=("gray90", "#252525"), border_color=("gray80", "#333333"), border_width=1)
@@ -401,13 +433,21 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
         self.hero_icon = ctk.CTkLabel(self.hero_frame, text=""); self.hero_icon.grid(row=0, column=0, padx=25, pady=20, sticky="w")
         self.title_label = ctk.CTkLabel(self.hero_frame, text="Select a package", font=ctk.CTkFont(family=MODERN_FONT[0], size=24, weight="bold"), text_color="white", anchor="w")
         self.title_label.grid(row=0, column=1, padx=15, pady=20, sticky="w")
-        self.desc_textbox = ctk.CTkTextbox(self, height=100, wrap="word", font=ctk.CTkFont(family=MODERN_FONT[0], size=14)); self.desc_textbox.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        # Description Box Container with borders
+        self.desc_frame = ctk.CTkFrame(self, fg_color=("white", "#222222"), border_width=1, border_color=("gray80", "#333333"), corner_radius=15)
+        self.desc_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        self.desc_textbox = ctk.CTkTextbox(self.desc_frame, height=100, wrap="word", font=ctk.CTkFont(family=MODERN_FONT[0], size=14), fg_color="transparent")
+        self.desc_textbox.pack(fill="both", expand=True, padx=10, pady=10)
+
         self.action_frame = ctk.CTkFrame(self, fg_color="transparent"); self.action_frame.grid(row=2, column=0, padx=20, pady=15, sticky="ew")
         self.install_btn = ctk.CTkButton(self.action_frame, text="Install", command=self.handle_install, fg_color="#2eb354", height=40, corner_radius=12, font=ctk.CTkFont(weight="bold"))
         self.remove_btn = ctk.CTkButton(self.action_frame, text="Remove", command=self.handle_remove, fg_color="#e53935", height=40, corner_radius=12, font=ctk.CTkFont(weight="bold"))
         self.run_btn = ctk.CTkButton(self.action_frame, text="Launch", command=self.handle_run, fg_color="#1a73e8", height=40, corner_radius=12, font=ctk.CTkFont(weight="bold"))
-        self.meta_frame = ctk.CTkFrame(self, fg_color=("gray95", "#2a2a2a"), corner_radius=15); self.meta_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
-        self.depends_text = ctk.CTkTextbox(self.meta_frame, height=80, wrap="word", font=ctk.CTkFont(size=12)); self.depends_text.pack(fill="x", padx=15, pady=15)
+        
+        # Meta Frame with borders
+        self.meta_frame = ctk.CTkFrame(self, fg_color=("white", "#222222"), border_width=1, border_color=("gray80", "#333333"), corner_radius=15)
+        self.meta_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        self.depends_text = ctk.CTkTextbox(self.meta_frame, height=80, wrap="word", font=ctk.CTkFont(size=12), fg_color="transparent"); self.depends_text.pack(fill="x", padx=15, pady=15)
         self._bind_scroll_recursive(self)
 
     def display_package(self, pkg):
@@ -454,7 +494,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self.apply_callback = apply_callback
         
         self.title("Settings")
-        self.geometry("400x350")
+        self.geometry("400x520")
         self.resizable(False, False)
         
         self.grid_columnconfigure(0, weight=1)
@@ -485,9 +525,42 @@ class SettingsWindow(ctk.CTkToplevel):
         self.accent_seg = ctk.CTkSegmentedButton(self.accent_frame, values=["blue", "green", "dark-blue"], variable=self.accent_var)
         self.accent_seg.pack(fill="x")
         
+        # Active Startup Filters Setting
+        self.filters_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.filters_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
+        
+        self.filters_label = ctk.CTkLabel(self.filters_frame, text="Active Backends on Startup", font=ctk.CTkFont(weight="bold"))
+        self.filters_label.pack(anchor="w", pady=(0, 5))
+        
+        self.filters_container = ctk.CTkFrame(self.filters_frame, fg_color=("gray90", "#181818"), border_width=1, border_color=("gray80", "#333333"), corner_radius=10)
+        self.filters_container.pack(fill="x", ipady=8, ipadx=10)
+        
+        # Grid layout for checkboxes
+        self.checkbox_vars = {}
+        backends = self.master.pkg_manager.backends
+        saved_filters = self.config_manager.get("startup_filters", [])
+        if not saved_filters:
+            saved_filters = [b.BACKEND_ID for b in backends]
+            
+        row_idx = 0
+        col_idx = 0
+        for backend in backends:
+            bid = backend.BACKEND_ID
+            label_text = BACKEND_LABELS.get(bid, bid)
+            var = ctk.BooleanVar(value=(bid in saved_filters))
+            self.checkbox_vars[bid] = var
+            
+            cb = ctk.CTkCheckBox(self.filters_container, text=label_text, variable=var, font=ctk.CTkFont(family=MODERN_FONT[0], size=11))
+            cb.grid(row=row_idx, column=col_idx, padx=12, pady=6, sticky="w")
+            
+            col_idx += 1
+            if col_idx >= 3:
+                col_idx = 0
+                row_idx += 1
+        
         # Apply Button
         self.apply_btn = ctk.CTkButton(self, text="Apply & Save", command=self.save_and_apply, height=40, font=ctk.CTkFont(weight="bold"))
-        self.apply_btn.grid(row=3, column=0, pady=(30, 10))
+        self.apply_btn.grid(row=4, column=0, pady=(20, 10))
 
         # Make it modal
         self.transient(master)
@@ -500,5 +573,20 @@ class SettingsWindow(ctk.CTkToplevel):
         self.config_manager.set("theme", new_theme)
         self.config_manager.set("accent_color", new_accent)
         
+        # Gather and save startup filters
+        selected_filters = [bid for bid, var in self.checkbox_vars.items() if var.get()]
+        self.config_manager.set("startup_filters", selected_filters)
+        
         self.apply_callback(new_theme, new_accent)
+        
+        # Live update filter buttons and results
+        if hasattr(self.master, "filter_bar"):
+            self.master.filter_bar.active_backends = set(selected_filters)
+            for bid, btn in self.master.filter_bar._buttons.items():
+                if bid in selected_filters:
+                    btn.configure(fg_color=BACKEND_COLORS.get(bid, "gray"))
+                else:
+                    btn.configure(fg_color=("gray60", "gray35"))
+            self.master.handle_filter_change(set(selected_filters))
+            
         self.destroy()

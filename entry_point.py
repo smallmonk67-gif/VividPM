@@ -14,10 +14,11 @@ sys.path.append(base_path)
 if __name__ == "__main__":
     try:
         from vivid_gui.main import App
+        from vivid_gui.config_manager import config_manager
         
-        # Set theme
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        # Set theme from config
+        ctk.set_appearance_mode(config_manager.get("theme", "System"))
+        ctk.set_default_color_theme(config_manager.get("accent_color", "blue"))
         
         app = App()
         app.mainloop()

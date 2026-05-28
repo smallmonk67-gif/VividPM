@@ -31,9 +31,10 @@ if __name__ == "__main__":
         import customtkinter as ctk
         from PIL import Image, ImageTk
         from vivid_gui.main import App
+        from vivid_gui.config_manager import config_manager
         
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_appearance_mode(config_manager.get("theme", "System"))
+        ctk.set_default_color_theme(config_manager.get("accent_color", "blue"))
         
         app = App()
         app.mainloop()

@@ -79,10 +79,11 @@ class App(ctk.CTk):
 
         # Package List
         self.package_list = PackageListFrame(self.left_panel, self.handle_package_select)
+        self.package_list.apply_filter(self.filter_bar.active_backends)
         self.package_list.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # Right Panel: Details
-        self.right_panel = ctk.CTkFrame(self.paned_window, corner_radius=0, fg_color=("white", "#1e1e1e"))
+        self.right_panel = ctk.CTkFrame(self.paned_window, corner_radius=0, fg_color=("gray95", "#1e1e1e"))
         
         # Add panels to PanedWindow. Left panel is resizable/scalable, right panel preserves width on shrink.
         self.paned_window.add(self.left_panel, width=320, minsize=200, stretch="always")
@@ -94,7 +95,7 @@ class App(ctk.CTk):
             on_remove=self.remove_package,
             on_run=self.run_package,
             fetch_extended_info=self.fetch_extended_info,
-            fg_color="transparent"
+            fg_color=("gray95", "#1e1e1e")
         )
         self.detail_view.pack(fill="both", expand=True)
 
@@ -102,6 +103,13 @@ class App(ctk.CTk):
         self.top_bar = ctk.CTkFrame(self.right_panel, height=50, fg_color="transparent")
         self.top_bar.pack(fill="x", side="top", padx=20, pady=(15, 0))
         
+        self.settings_btn = ctk.CTkButton(
+            self.top_bar, text="⚙️ Settings", width=40,
+            fg_color="transparent", hover_color=("gray85", "#2e2e2e"),
+            text_color=("black", "white"), command=self.open_settings
+        )
+        self.settings_btn.pack(side="left", padx=(0, 10))
+
         self.status_label = ctk.CTkLabel(self.top_bar, text="Ready", text_color="gray")
         self.status_label.pack(side="left")
 
@@ -118,13 +126,6 @@ class App(ctk.CTk):
             command=self.handle_build_local
         )
         self.build_local_btn.pack(side="right", padx=5)
-        
-        self.settings_btn = ctk.CTkButton(
-            self.top_bar, text="⚙️ Settings", width=40,
-            fg_color="transparent", hover_color=("gray85", "#2e2e2e"),
-            text_color=("black", "white"), command=self.open_settings
-        )
-        self.settings_btn.pack(side="right", padx=5)
 
     def _apply_theme_config(self, theme, accent):
         ctk.set_appearance_mode(theme)
@@ -137,8 +138,10 @@ class App(ctk.CTk):
         self.update_status("Loading installed apps...")
         self.package_list.clear()
         
-        # Determine total backends for the loading indicator
-        backends = self.pkg_manager.backends
+        # Only scan active startup backends
+        active_ids = self.filter_bar.active_backends
+        backends = [b for b in self.pkg_manager.backends if b.BACKEND_ID in active_ids]
+        
         self.package_list.start_loading(len(backends))
 
         for backend in backends:
@@ -170,14 +173,19 @@ class App(ctk.CTk):
         
         self.search_start_time = time.time()
         self.search_session_id = object()
-        self.active_search_backends = {b.BACKEND_ID for b in self.pkg_manager.backends}
+        
+        # Only search active filter backends
+        active_ids = self.filter_bar.active_backends
+        backends = [b for b in self.pkg_manager.backends if b.BACKEND_ID in active_ids]
+        
+        self.active_search_backends = set(active_ids)
         self.package_list.clear()
-        self.package_list.start_loading(len(self.pkg_manager.backends))
+        self.package_list.start_loading(len(backends))
         self.update_status(f"Searching for '{query}'...")
         
         self._update_search_timer(query, self.search_session_id)
 
-        for backend in self.pkg_manager.backends:
+        for backend in backends:
             threading.Thread(
                 target=self._run_backend_search, 
                 args=(backend, query), 
