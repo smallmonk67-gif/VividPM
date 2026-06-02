@@ -11,7 +11,7 @@ from vivid_gui.backends import (
     apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
-    windows_native_backend,
+    windows_native_backend, linux_native_backend, web_app_backend,
     brew_backend, macports_backend, nix_backend, fink_backend,
     npm_backend, cargo_backend, gem_backend,
 )
@@ -22,7 +22,7 @@ _ALL_BACKENDS = [
     pacman_backend, aur_backend, apt_backend, dnf_backend, zypper_backend,
     portage_backend, xbps_backend, apk_backend,
     winget_backend, choco_backend, scoop_backend,
-    windows_native_backend,
+    windows_native_backend, linux_native_backend, web_app_backend,
     brew_backend, macports_backend, nix_backend, fink_backend,
     flatpak_backend, snap_backend, pip_backend,
     npm_backend, cargo_backend, gem_backend,
@@ -45,6 +45,8 @@ _BACKEND_COMPAT = {
     "choco":   {"windows"},
     "scoop":   {"windows"},
     "windows_native": {"windows"},
+    "linux_native": {"linux", "arch", "debian", "ubuntu", "fedora", "gentoo", "alpine", "void", "suse"},
+    "web_app": None,  # universal
     "brew":    {"macos", "darwin", "linux"}, # Linuxbrew exists
     "macports":{"macos", "darwin"},
     "nix":     {"macos", "darwin", "linux"},

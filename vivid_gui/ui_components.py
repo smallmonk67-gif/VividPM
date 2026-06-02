@@ -20,6 +20,8 @@ BACKEND_COLORS = {
     "choco":   "#8b4513",  # SaddleBrown
     "scoop":   "#ff8c00",  # DarkOrange
     "windows_native": "#0078d4", # Windows Native blue
+    "linux_native": "#6b6b6b", # Linux Native gray
+    "web_app": "#06b6d4", # Cyan PWA color
     "brew":    "#f2b144",  # Homebrew brown/orange
     "macports":"#2a5078",  # MacPorts blue
     "nix":     "#5277c3",  # Nix blue
@@ -48,6 +50,8 @@ BACKEND_LABELS = {
     "choco":   "Choco",
     "scoop":   "Scoop",
     "windows_native": "Windows",
+    "linux_native": "Linux",
+    "web_app": "Web App",
     "brew":    "Brew",
     "macports":"MacPorts",
     "nix":     "Nix",
@@ -191,9 +195,11 @@ class PackageListFrame(ctk.CTkFrame):
         self._loading_backends = 0
         
         # Virtual Scrolling State
-        self._start_index = 0
-        self.pool_size = 20
+        self._scroll_y = 0.0
+        self.pool_size = 0  # Will be calculated dynamically
         self._pool = []
+        self._item_height = 79 # 75 height + 4 padding
+        self._container_height = 100
         
         # Layout
         self.grid_rowconfigure(1, weight=1)
@@ -211,24 +217,44 @@ class PackageListFrame(ctk.CTkFrame):
         # Items container
         self.items_container = ctk.CTkFrame(self, fg_color="transparent")
         self.items_container.grid(row=1, column=0, sticky="nsew")
-        self.items_container.grid_columnconfigure(0, weight=1)
         
         # Scrollbar
         self.scrollbar = ctk.CTkScrollbar(self, command=self._on_scrollbar)
         self.scrollbar.grid(row=1, column=1, sticky="ns")
-        
-        # Initialize Pool
-        for _ in range(self.pool_size):
-            item = PackageListItem(self.items_container, self.on_item_click)
-            self._pool.append(item)
             
-        # Bind Mouse Wheel
+        # Bindings
         self.bind("<MouseWheel>", self._on_mousewheel)
         self.bind("<Button-4>", self._on_mousewheel)
         self.bind("<Button-5>", self._on_mousewheel)
         self.items_container.bind("<MouseWheel>", self._on_mousewheel)
+        self.items_container.bind("<Configure>", self._on_container_configure)
         for child in self.winfo_children():
             self._bind_mousewheel_recursive(child)
+
+    def _on_container_configure(self, event):
+        self._container_height = event.height
+        # Pool size is enough to cover the screen + 2 for top/bottom partial items
+        fit_count = max(1, event.height // self._item_height) + 2
+        if fit_count != self.pool_size:
+            self.pool_size = fit_count
+            self._update_pool()
+        elif hasattr(self, "_filtered_packages"):
+            self._update_visible_items()
+
+    def _update_pool(self):
+        # Expand pool
+        while len(self._pool) < self.pool_size:
+            item = PackageListItem(self.items_container, self.on_item_click)
+            self._bind_mousewheel_recursive(item)
+            self._pool.append(item)
+            
+        # Shrink pool
+        while len(self._pool) > self.pool_size:
+            item = self._pool.pop()
+            item.destroy()
+            
+        if hasattr(self, "_filtered_packages"):
+            self._update_visible_items()
 
     def _bind_mousewheel_recursive(self, widget):
         widget.bind("<MouseWheel>", self._on_mousewheel, add="+")
@@ -238,24 +264,35 @@ class PackageListFrame(ctk.CTkFrame):
             self._bind_mousewheel_recursive(child)
 
     def _on_scrollbar(self, *args):
+        total_height = len(self._filtered_packages) * self._item_height
+        max_scroll_y = max(0.0, total_height - self._container_height)
+        
         if len(args) == 2 and args[0] == "moveto":
             fraction = float(args[1])
-            max_idx = max(0, len(self._filtered_packages) - self.pool_size)
-            self._start_index = int(fraction * max_idx)
-            self._update_visible_items()
+            self._pending_scroll_y = min(max_scroll_y, fraction * total_height)
+            if not getattr(self, "_scrollbar_scheduled", False):
+                self._scrollbar_scheduled = True
+                self.after_idle(self._process_scrollbar_moveto)
         elif len(args) == 3 and args[0] == "scroll":
             delta = int(args[1])
-            self._scroll_by(delta)
+            self._scroll_by(delta * 40.0)
+
+    def _process_scrollbar_moveto(self):
+        self._scrollbar_scheduled = False
+        if hasattr(self, "_pending_scroll_y"):
+            self._scroll_y = self._pending_scroll_y
+            self._update_visible_items()
 
     def _on_mousewheel(self, event):
         delta = 0
-        if event.num == 4: delta = -1
-        elif event.num == 5: delta = 1
-        elif hasattr(event, "delta") and event.delta != 0: delta = -1 if event.delta > 0 else 1
+        if event.num == 4: delta = -40
+        elif event.num == 5: delta = 40
+        elif hasattr(event, "delta") and event.delta != 0: 
+            delta = -40 if event.delta > 0 else 40
         
         if delta != 0:
             if not hasattr(self, "_pending_scroll"):
-                self._pending_scroll = 0
+                self._pending_scroll = 0.0
             self._pending_scroll += delta
             
             if not getattr(self, "_scroll_scheduled", False):
@@ -264,29 +301,37 @@ class PackageListFrame(ctk.CTkFrame):
 
     def _process_pending_scroll(self):
         self._scroll_scheduled = False
-        delta = getattr(self, "_pending_scroll", 0)
-        self._pending_scroll = 0
+        delta = getattr(self, "_pending_scroll", 0.0)
+        self._pending_scroll = 0.0
         if delta != 0:
             self._scroll_by(delta)
 
-    def _scroll_by(self, delta):
-        max_idx = max(0, len(self._filtered_packages) - self.pool_size)
-        self._start_index = max(0, min(max_idx, self._start_index + delta))
+    def _scroll_by(self, delta_pixels):
+        max_scroll_y = max(0.0, len(self._filtered_packages) * self._item_height - self._container_height)
+        self._scroll_y = max(0.0, min(max_scroll_y, self._scroll_y + delta_pixels))
         self._update_visible_items()
 
     def _update_visible_items(self):
-        total = len(self._filtered_packages)
-        if total <= self.pool_size:
+        total_items = len(self._filtered_packages)
+        total_height = total_items * self._item_height
+        max_scroll_y = max(0.0, total_height - self._container_height)
+        
+        # Clamp scroll position
+        self._scroll_y = max(0.0, min(max_scroll_y, self._scroll_y))
+        
+        if total_height <= self._container_height or total_height == 0:
             self.scrollbar.set(0.0, 1.0)
         else:
-            fraction_visible = self.pool_size / total
-            first = self._start_index / total
-            last = min(1.0, first + fraction_visible)
+            first = self._scroll_y / total_height
+            last = min(1.0, (self._scroll_y + self._container_height) / total_height)
             self.scrollbar.set(first, last)
             
+        start_idx = int(self._scroll_y // self._item_height)
+        y_offset = -(self._scroll_y % self._item_height)
+        
         for i, item in enumerate(self._pool):
-            idx = self._start_index + i
-            if idx < total:
+            idx = start_idx + i
+            if idx < total_items:
                 pkg = self._filtered_packages[idx]
                 item.update_data(pkg)
                 
@@ -299,11 +344,10 @@ class PackageListFrame(ctk.CTkFrame):
                     if self.selected_item == item:
                         self.selected_item = None
                         
-                if not item.winfo_ismapped():
-                    item.grid(row=i, column=0, sticky="ew", padx=5, pady=2)
+                # Use absolute placing for smooth scrolling
+                item.place(relwidth=1.0, x=0, y=y_offset + i * self._item_height)
             else:
-                if item.winfo_ismapped():
-                    item.grid_remove()
+                item.place_forget()
 
     def start_loading(self, count=1):
         self._loading_backends += count
@@ -346,20 +390,16 @@ class PackageListFrame(ctk.CTkFrame):
         else:
             self._filtered_packages = list(self._all_packages)
         
-        max_idx = max(0, len(self._filtered_packages) - self.pool_size)
-        if self._start_index > max_idx:
-            self._start_index = max_idx
-            
         self._update_visible_items()
 
     def clear(self, keep_cache=False):
-        self._start_index = 0
+        self._scroll_y = 0.0
         self.selected_item = None
         self.selected_pkg_id = None
         for item in self._pool:
             item.pkg_data = {}  # Reset stale data so update_data early-return doesn't skip
             if item.winfo_ismapped():
-                item.grid_remove()
+                item.place_forget()
         if not keep_cache:
             self._all_packages.clear()
             self._filtered_packages.clear()
@@ -406,7 +446,15 @@ class PackageListItem(ctk.CTkFrame):
 
         self.pkg_data = pkg_data
         backend = pkg_data.get("backend", "pacman")
-        icon_img = icon_resolver.get_icon_image(pkg_data.get("Icon", ""), size=(40, 40)) or icon_resolver.get_placeholder_icon(size=(40, 40))
+        def _on_icon_ready(img):
+            if self.winfo_exists() and getattr(self, "pkg_data", {}).get("Name") == pkg_data.get("Name"):
+                self.icon_label.configure(image=img)
+
+        icon_img = icon_resolver.get_icon_image(
+            pkg_data.get("Icon", ""), 
+            size=(40, 40),
+            on_ready=lambda img: self.after(0, _on_icon_ready, img)
+        ) or icon_resolver.get_placeholder_icon(size=(40, 40))
         self.icon_label.configure(image=icon_img)
         self.name_label.configure(text=pkg_data.get("Name", "Unknown"))
         self.badge.configure(text=BACKEND_LABELS.get(backend, backend).upper(), fg_color=BACKEND_COLORS.get(backend, "gray"))
@@ -456,7 +504,16 @@ class PackageDetailFrame(ctk.CTkScrollableFrame):
     def display_package(self, pkg):
         self.current_pkg = pkg; backend = pkg.get("backend", "pacman"); color = BACKEND_COLORS.get(backend, "gray")
         self.title_label.configure(text=pkg.get("Name", "Unknown")); self.hero_frame.configure(fg_color=color)
-        self.hero_icon.configure(image=icon_resolver.get_icon_image(pkg.get("Icon", ""), size=(64, 64)) or icon_resolver.get_placeholder_icon(size=(64, 64)))
+        def _on_hero_icon_ready(img):
+            if self.winfo_exists() and self.current_pkg and self.current_pkg.get("Name") == pkg.get("Name"):
+                self.hero_icon.configure(image=img)
+                
+        icon_img = icon_resolver.get_icon_image(
+            pkg.get("Icon", ""), 
+            size=(64, 64),
+            on_ready=lambda img: self.after(0, _on_hero_icon_ready, img)
+        ) or icon_resolver.get_placeholder_icon(size=(64, 64))
+        self.hero_icon.configure(image=icon_img)
         self._set_text(self.desc_textbox, pkg.get("Description", "No description available."))
         self.install_btn.pack_forget(); self.remove_btn.pack_forget(); self.run_btn.pack_forget()
         if pkg.get("is_installed"): self.remove_btn.pack(side="left", padx=5); self.run_btn.pack(side="left", padx=5)
@@ -499,7 +556,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self.apply_callback = apply_callback
         
         self.title("Settings")
-        self.geometry("400x520")
+        self.geometry("400x570")
         self.resizable(False, False)
         
         self.grid_columnconfigure(0, weight=1)
@@ -563,9 +620,16 @@ class SettingsWindow(ctk.CTkToplevel):
                 col_idx = 0
                 row_idx += 1
         
+        # Web Icons Setting
+        self.web_icons_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.web_icons_frame.grid(row=4, column=0, sticky="ew", padx=30, pady=10)
+        self.web_icons_var = ctk.BooleanVar(value=self.config_manager.get("fetch_web_icons", True))
+        self.web_icons_cb = ctk.CTkSwitch(self.web_icons_frame, text="Fetch Missing Icons from Web", variable=self.web_icons_var, font=ctk.CTkFont(weight="bold"))
+        self.web_icons_cb.pack(anchor="w")
+
         # Apply Button
         self.apply_btn = ctk.CTkButton(self, text="Apply & Save", command=self.save_and_apply, height=40, font=ctk.CTkFont(weight="bold"))
-        self.apply_btn.grid(row=4, column=0, pady=(20, 10))
+        self.apply_btn.grid(row=5, column=0, pady=(20, 10))
 
         # Make it modal
         self.transient(master)
@@ -577,6 +641,7 @@ class SettingsWindow(ctk.CTkToplevel):
         
         self.config_manager.set("theme", new_theme)
         self.config_manager.set("accent_color", new_accent)
+        self.config_manager.set("fetch_web_icons", self.web_icons_var.get())
         
         # Gather and save startup filters
         selected_filters = [bid for bid, var in self.checkbox_vars.items() if var.get()]

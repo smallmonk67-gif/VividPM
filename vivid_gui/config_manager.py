@@ -10,7 +10,8 @@ class ConfigManager:
         "accent_color": "blue",
         "startup_scan": True,
         "show_warnings": True,
-        "startup_filters": []
+        "startup_filters": [],
+        "fetch_web_icons": True
     }
 
     def __new__(cls):

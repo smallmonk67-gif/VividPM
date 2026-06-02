@@ -19,7 +19,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title(f"Vivid Package Manager v{VERSION}")
-        self.geometry("1100x700")
+        self.geometry(config_manager.get("window_geometry", "1100x700"))
         
         # Apply theme from configuration
         self._apply_theme_config(config_manager.get("theme", "System"), config_manager.get("accent_color", "blue"))
@@ -39,6 +39,17 @@ class App(ctk.CTk):
         # Start background scan for installed apps
         self.after(500, self._initial_scan)
         self.after(1000, self._check_missing_backends)
+
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _on_closing(self):
+        config_manager.set("window_geometry", self.geometry())
+        try:
+            sash_x, sash_y = self.paned_window.sash_coord(0)
+            config_manager.set("sash_position", sash_x)
+        except Exception:
+            pass
+        self.destroy()
 
     def _setup_ui(self):
         # Main PanedWindow for resizable/scalable layout
@@ -126,6 +137,11 @@ class App(ctk.CTk):
             command=self.handle_build_local
         )
         self.build_local_btn.pack(side="right", padx=5)
+
+        saved_sash = config_manager.get("sash_position")
+        if saved_sash is not None:
+            # Apply sash position after the window geometry is rendered
+            self.after(200, lambda: self.paned_window.sash_place(0, saved_sash, 0))
 
     def _apply_theme_config(self, theme, accent):
         ctk.set_appearance_mode(theme)

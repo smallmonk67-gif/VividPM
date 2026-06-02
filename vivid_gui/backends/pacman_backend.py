@@ -97,8 +97,7 @@ def search(query: str):
 
 
 def get_installed():
-    apps = []
-    seen_names = set()
+    raw_apps = []
     cache = _load_cache()
     cache_updated = False
     
@@ -142,7 +141,7 @@ def get_installed():
                                 name = ""
                                 break
 
-                if not name or not exec_cmd or name in seen_names:
+                if not name or not exec_cmd:
                     continue
 
                 exec_clean = re.sub(r"%[a-zA-Z]", "", exec_cmd).strip()
@@ -156,7 +155,9 @@ def get_installed():
                     if shutil.which(binary) is None:
                         continue
 
-                seen_names.add(name)
+                # If no icon was specified, fall back to the binary name
+                if not icon:
+                    icon = os.path.basename(binary)
 
                 pkg_name = cache.get(path)
                 if pkg_name is None:
@@ -173,9 +174,22 @@ def get_installed():
                             pass
 
                 pkg_name_final = pkg_name or name
-                is_aur = pkg_name_final in foreign_pkgs
+                
+                if pkg_name:
+                    is_aur = pkg_name in foreign_pkgs
+                    assigned_backend = "aur" if is_aur else BACKEND_ID
+                else:
+                    # Detect if PWA/Web App
+                    is_web_app = False
+                    exec_lower = exec_clean.lower()
+                    if "--app-id=" in exec_lower or "--app=" in exec_lower or "chrome-extension://" in exec_lower or "--application-mode" in exec_lower:
+                        is_web_app = True
+                    elif fname.startswith("chrome-") or fname.startswith("brave-") or fname.startswith("msedge-"):
+                        is_web_app = True
+                    
+                    assigned_backend = "web_app" if is_web_app else "linux_native"
 
-                apps.append({
+                raw_apps.append({
                     "Name": name,
                     "ID": pkg_name_final,
                     "Version": "",
@@ -183,7 +197,7 @@ def get_installed():
                     "is_installed": True,
                     "is_app": True,
                     "Exec": exec_clean,
-                    "backend": "aur" if is_aur else BACKEND_ID,
+                    "backend": assigned_backend,
                     "PackageName": pkg_name_final,
                     "Path": path,
                     "Icon": icon,
@@ -193,6 +207,53 @@ def get_installed():
 
     if cache_updated:
         _save_cache(cache)
+
+    # Post-process to remove duplicates
+    # Group by name first (case-insensitive)
+    by_name = {}
+    for app in raw_apps:
+        name_lower = app["Name"].lower()
+        if name_lower not in by_name:
+            by_name[name_lower] = []
+        by_name[name_lower].append(app)
+        
+    de_duped_1 = []
+    for name_lower, group in by_name.items():
+        # Select the best one in the group
+        # Sort by: 1. User override (Path contains ~) 2. Package owned (backend in aur/pacman) 3. Has icon
+        def sort_key(x):
+            is_user = x["Path"].startswith(os.path.expanduser("~"))
+            is_owned = x["backend"] in (BACKEND_ID, "aur")
+            has_icon = bool(x["Icon"])
+            return (is_user, is_owned, has_icon)
+        
+        group.sort(key=sort_key, reverse=True)
+        de_duped_1.append(group[0])
+        
+    # Group by Exec command (case-insensitive) to filter out duplicate shortcuts pointing to the same command
+    by_exec = {}
+    for app in de_duped_1:
+        exec_lower = app["Exec"].lower()
+        if exec_lower not in by_exec:
+            by_exec[exec_lower] = []
+        by_exec[exec_lower].append(app)
+        
+    apps = []
+    for exec_lower, group in by_exec.items():
+        # If there are multiple shortcuts for the same execution command, and at least one is owned by pacman/aur
+        # we discard the unowned (linux_native) ones
+        owned = [x for x in group if x["backend"] in (BACKEND_ID, "aur")]
+        if owned:
+            # Keep all owned ones
+            apps.extend(owned)
+        else:
+            # None are owned, keep the best one (using same sort key)
+            def sort_key(x):
+                is_user = x["Path"].startswith(os.path.expanduser("~"))
+                has_icon = bool(x["Icon"])
+                return (is_user, has_icon)
+            group.sort(key=sort_key, reverse=True)
+            apps.append(group[0])
 
     apps.sort(key=lambda x: x["Name"].lower())
     return apps
