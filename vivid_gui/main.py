@@ -12,7 +12,7 @@ import time
 from vivid_gui import utils
 
 # Application Version
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 
 class App(ctk.CTk):
     def __init__(self):
